@@ -20,7 +20,7 @@
     goalText: document.getElementById('goal-text'),
   };
 
-  let q = null, typed = '', locked = true, hintTimer = null;
+  let q = null, typed = '', locked = true, hintTimer = null, spentTimer = null;
 
   // ---- numpad: every answer 0-20 is one tap away
   const buttons = [];
@@ -96,12 +96,18 @@
       hintTimer = setTimeout(renderModel, 6000);
     }
 
-    // gentle pace bar: 5s drain, nothing happens when it empties
+    // gentle pace bar: drains over the real fluency window for this fact
+    // (long while learning, tightening toward 5s as the model fades).
+    // Nothing happens when it empties — it never fails or rushes the student.
+    const paceMs = q.pace_ms || 15000;
+    el.pace.classList.remove('spent');
     el.pace.style.transition = 'none';
     el.pace.style.width = '100%';
     void el.pace.offsetWidth; // reflow so the transition restarts
-    el.pace.style.transition = 'width 5s linear';
+    el.pace.style.transition = 'width ' + paceMs + 'ms linear';
     el.pace.style.width = '0%';
+    clearTimeout(spentTimer);
+    spentTimer = setTimeout(() => el.pace.classList.add('spent'), paceMs);
   }
 
   function renderModel() {
@@ -114,6 +120,7 @@
   async function submit(n) {
     locked = true;
     clearTimeout(hintTimer);
+    clearTimeout(spentTimer);
     el.answer.textContent = n;
     const res = await fetch(ANSWER_URL, {
       method: 'POST',

@@ -49,7 +49,7 @@ class PracticeFlowTests(TestCase):
     def test_full_round_trip_correct(self):
         q = self.get_next()
         for key in ('fact_id', 'op', 'symbol', 'a', 'b', 'scaffold', 'model',
-                    'strategy', 'daily'):
+                    'strategy', 'pace_ms', 'daily'):
             self.assertIn(key, q)
         fact = Fact.objects.get(id=q['fact_id'])
         response = self.post_answer(q['fact_id'], fact.answer)
@@ -132,6 +132,27 @@ class PracticeFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'hightech.css')
 
+    def test_practice_page_embeds_valid_theme_json(self):
+        # regression: theme data must be a JSON *object*, not a double-encoded
+        # string (which made THEME.cheers undefined and broke answering).
+        response = self.client.get(reverse('practice'))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        start = html.index('id="theme-data"')
+        blob = html[html.index('>', start) + 1:html.index('</script>', start)]
+        data = json.loads(blob)
+        self.assertIsInstance(data, dict)
+        self.assertIsInstance(data['cheers'], list)
+        self.assertTrue(data['point_icon'])
+        # csrf cookie is guaranteed for the JS POSTs
+        self.assertIn('csrftoken', response.cookies)
+
+    def test_pace_window_matches_fluency_threshold(self):
+        q = self.get_next()
+        self.assertEqual(q['pace_ms'], srs.FLUENT_MS[q['scaffold']])
+        # a brand-new fact (full scaffold) is forgiving, not a 5s sprint
+        self.assertGreaterEqual(q['pace_ms'], 15000)
+
     def test_server_side_timing_used_for_points(self):
         # the client can't claim fluency: timing comes from the server clock,
         # so an instant test-client answer is "fluent" regardless of payload
@@ -139,3 +160,43 @@ class PracticeFlowTests(TestCase):
         fact = Fact.objects.get(id=q['fact_id'])
         data = self.post_answer(q['fact_id'], fact.answer).json()
         self.assertEqual(data['points_earned'], srs.POINTS_FLUENT)
+
+
+class ManageTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command('seed_facts', verbosity=0)
+
+    def setUp(self):
+        User.objects.create_user('teacher', password='pw', is_staff=True)
+        self.client.login(username='teacher', password='pw')
+
+    def test_manage_requires_staff(self):
+        self.client.logout()
+        User.objects.create_user('kid', password='pw')
+        self.client.login(username='kid', password='pw')
+        self.assertEqual(self.client.get(reverse('manage')).status_code, 302)
+
+    def test_add_student_creates_user_and_student(self):
+        response = self.client.post(reverse('manage'), {
+            'action': 'add_student', 'username': 'newkid',
+            'password': 'pw12', 'theme': 'princess', 'goal': 200})
+        self.assertRedirects(response, reverse('manage'))
+        student = Student.objects.get(user__username='newkid')
+        self.assertEqual(student.theme, 'princess')
+        self.assertEqual(student.daily_goal_points, 200)
+        self.assertTrue(student.user.check_password('pw12'))
+
+    def test_add_duplicate_username_rejected(self):
+        User.objects.create_user('dupe', password='x')
+        self.client.post(reverse('manage'), {
+            'action': 'add_student', 'username': 'dupe', 'password': 'pw12'})
+        self.assertEqual(User.objects.filter(username='dupe').count(), 1)
+
+    def test_reset_password(self):
+        u = User.objects.create_user('kid', password='old1')
+        s = Student.objects.create(user=u)
+        self.client.post(reverse('manage'), {
+            'action': 'reset_password', 'student_id': s.pk, 'password': 'new1'})
+        u.refresh_from_db()
+        self.assertTrue(u.check_password('new1'))

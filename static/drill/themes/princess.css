@@ -2,7 +2,8 @@
 
 body.theme-princess {
   --bg: linear-gradient(160deg, #fbe3f1 0%, #efd6f7 50%, #d9e2fb 100%);
-  --bg-image: url('princess/background.webp');
+  /* optional art layered over the gradient; resolves to themes/princess/background.webp */
+  background-image: url('princess/background.webp'), var(--bg);
   --panel: #fffafd;
   --panel-soft: #fbe9f4;
   --text: #5a3354;

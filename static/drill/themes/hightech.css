@@ -2,7 +2,8 @@
 
 body.theme-hightech {
   --bg: linear-gradient(180deg, #0b1224 0%, #11203c 55%, #182c4e 100%);
-  --bg-image: url('hightech/background.webp');
+  /* optional art layered over the gradient; resolves to themes/hightech/background.webp */
+  background-image: url('hightech/background.webp'), var(--bg);
   --panel: #16243d;
   --panel-soft: #1f3252;
   --text: #d9e7ff;

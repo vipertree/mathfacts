@@ -1,13 +1,15 @@
 import json
 from datetime import timedelta
 
+from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import Avg
+from django.db.models import Avg, Count, Q
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
 from . import srs
@@ -48,15 +50,18 @@ def home(request):
 
 
 @login_required
+@ensure_csrf_cookie  # guarantee the csrftoken cookie exists for the JS POSTs
 def practice(request):
     student = _student(request)
     ctx = _theme_context(student)
-    ctx['theme_json'] = json.dumps({
+    # Pass a dict to json_script (it serializes); do NOT pre-dump to a string
+    # or it gets double-encoded and THEME becomes a string in the browser.
+    ctx['theme_data'] = {
         'cheers': ctx['theme']['cheers'],
         'oops': ctx['theme']['oops'],
         'goal_met': ctx['theme']['goal_met'],
         'point_icon': ctx['theme']['point_icon'],
-    })
+    }
     return render(request, 'drill/practice.html', ctx)
 
 
@@ -90,6 +95,55 @@ def set_theme(request):
     return redirect('home')
 
 
+# ---------------------------------------------------------------- teacher tools
+
+@staff_member_required
+def manage(request):
+    """Teacher dashboard: add students, reset their passwords, jump to reports.
+    Students are created here or via `manage.py create_student` — never by
+    self-signup, and never with an email."""
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'add_student':
+            username = request.POST.get('username', '').strip()
+            password = request.POST.get('password', '')
+            theme = request.POST.get('theme', 'pirate')
+            goal = request.POST.get('goal') or 150
+            if not username or not password:
+                messages.error(request, 'Username and password are both required.')
+            elif User.objects.filter(username=username).exists():
+                messages.error(request, f'A user named “{username}” already exists.')
+            elif theme not in THEMES:
+                messages.error(request, 'Unknown theme.')
+            else:
+                user = User.objects.create_user(username=username, password=password)
+                Student.objects.create(
+                    user=user, theme=theme, daily_goal_points=int(goal))
+                messages.success(request, f'Student “{username}” added.')
+        elif action == 'reset_password':
+            target = get_object_or_404(Student, pk=request.POST.get('student_id'))
+            new_password = request.POST.get('password', '')
+            if len(new_password) < 4:
+                messages.error(request, 'Password must be at least 4 characters.')
+            else:
+                target.user.set_password(new_password)
+                target.user.save()
+                messages.success(
+                    request, f'Password reset for “{target.user.username}”.')
+        return redirect('manage')
+
+    students = (Student.objects.select_related('user')
+                .annotate(mastered=Count('progress', filter=Q(progress__mastered=True)))
+                .order_by('user__username'))
+    ctx = _theme_context(_student(request))
+    ctx.update({
+        'students': students,
+        'total_facts': Fact.objects.count(),
+        'is_manage': True,
+    })
+    return render(request, 'drill/manage.html', ctx)
+
+
 # ---------------------------------------------------------------- API
 
 @login_required
@@ -110,6 +164,7 @@ def api_next(request):
         'scaffold': prog.scaffold,
         'model': STRATEGY_MODEL[fact.strategy],
         'strategy': fact.strategy,
+        'pace_ms': srs.FLUENT_MS[prog.scaffold],  # the real fluency window
         'daily': _daily_dict(student, _today(student)),
     })
 

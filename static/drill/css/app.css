@@ -3,7 +3,6 @@
 
 :root {
   --bg: linear-gradient(160deg, #e8eef7, #d4e0f0);
-  --bg-image: none;
   --panel: #ffffff;
   --panel-soft: #f2f5fa;
   --text: #243044;
@@ -26,9 +25,13 @@ body {
   min-height: 100vh;
   font-family: var(--font-body);
   color: var(--text);
-  background: var(--bg-image), var(--bg);
+  /* Theme files layer an optional photo on top of this via background-image;
+     a relative url() there resolves against the theme file's own folder
+     (static/drill/themes/<key>/), which is where the art belongs. */
+  background-image: var(--bg);
   background-size: cover;
   background-attachment: fixed;
+  background-position: center;
 }
 
 .topbar {
@@ -56,6 +59,34 @@ body {
 }
 
 .error { color: var(--soft-bad); font-weight: 600; }
+
+/* ---------- flash messages */
+.messages { list-style: none; padding: 0; margin: 0 0 16px; }
+.msg { padding: 12px 16px; border-radius: 12px; font-weight: 600; margin-bottom: 8px; }
+.msg.success { background: color-mix(in srgb, var(--good) 22%, var(--panel)); color: var(--good); }
+.msg.error { background: color-mix(in srgb, var(--soft-bad) 22%, var(--panel)); color: var(--soft-bad); }
+
+/* ---------- manage / teacher dashboard */
+.manage-page h1 { font-family: var(--font-display); }
+.manage-page h2 { font-family: var(--font-display); margin-top: 0; font-size: 1.1rem; }
+.add-student { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+.add-student .field { display: flex; flex-direction: column; gap: 4px; }
+.add-student label { font-weight: 600; font-size: .85rem; color: var(--text-soft); }
+.add-student input, .add-student select, .reset-form input {
+  padding: 9px 11px; font-size: 1rem; border: 2px solid var(--btn-border);
+  border-radius: 9px; background: var(--btn-bg); color: var(--text); }
+.hint { color: var(--text-soft); font-size: .88rem; margin-bottom: 0; }
+.student-table { width: 100%; border-collapse: collapse; }
+.student-table th { text-align: left; font-size: .8rem; color: var(--text-soft);
+  border-bottom: 2px solid var(--btn-border); padding: 6px 8px; }
+.student-table td { padding: 8px; border-bottom: 1px solid var(--panel-soft); vertical-align: middle; }
+.student-table a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.badge { font-size: .7rem; background: var(--accent); color: #fff; padding: 1px 7px;
+  border-radius: 999px; vertical-align: middle; }
+.reset-form { display: flex; gap: 6px; }
+.reset-form input { width: 130px; }
+.linklike-btn { background: var(--accent); color: #fff; border: none; border-radius: 8px;
+  padding: 8px 12px; font-weight: 700; cursor: pointer; }
 
 /* ---------- buttons */
 .btn-primary {
@@ -120,6 +151,8 @@ body {
             margin: 12px auto 0; overflow: hidden; }
 .pace-fill { height: 100%; width: 100%; border-radius: 4px;
              background: color-mix(in srgb, var(--accent) 55%, white); }
+/* when the gentle window elapses: just fade out, no alarm — take your time */
+.pace-fill.spent { opacity: .3; }
 
 .model-area { background: var(--panel); border-radius: var(--radius); padding: 12px;
               margin-top: 14px; box-shadow: 0 4px 18px rgba(20,30,60,.10); }

@@ -4,7 +4,8 @@
 
 body.theme-pirate {
   --bg: linear-gradient(165deg, #1c3a52 0%, #2c5d7c 45%, #3e7d96 100%);
-  --bg-image: url('pirate/background.webp');
+  /* optional art layered over the gradient; resolves to themes/pirate/background.webp */
+  background-image: url('pirate/background.webp'), var(--bg);
   --panel: #f7ecd7;
   --panel-soft: #ece0c4;
   --text: #3a2c1c;

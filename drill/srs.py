@@ -37,11 +37,14 @@ MAX_BOX = len(INTERVALS) - 1
 LEARNING_BOX_MAX = 1   # boxes <= this are "learning" (working set)
 MASTERY_BOX = 5
 
-# "Fluent" thresholds, generous while a visual model is on screen (reading
-# the model legitimately takes time) and tightening as it fades.
+# "Fluent" thresholds — deliberately forgiving early and tightening only as
+# the fact is learned and its visual model fades. A brand-new fact (full
+# model) gives 20 s; once the model is gone we close in on the 5 s goal.
+# The practice UI's pace bar is driven by these exact numbers (see api_next),
+# so what the student sees draining is the real window — never a shorter lie.
 FLUENT_MS = {
-    FactProgress.SCAFFOLD_FULL: 12000,
-    FactProgress.SCAFFOLD_FADING: 9000,
+    FactProgress.SCAFFOLD_FULL: 20000,
+    FactProgress.SCAFFOLD_FADING: 11000,
     FactProgress.SCAFFOLD_NONE: 6000,
 }
 TARGET_MS = 5000           # the ultimate goal: unscaffolded answer under 5 s

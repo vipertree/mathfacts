@@ -1,0 +1,65 @@
+{% extends 'drill/base.html' %}
+{% block title %}Manage students · Math Facts{% endblock %}
+{% block content %}
+<div class="manage-page">
+  <h1>Manage students</h1>
+
+  <div class="card">
+    <h2>Add a student</h2>
+    <form method="post" class="add-student">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_student">
+      <div class="field">
+        <label>Username</label>
+        <input type="text" name="username" autocapitalize="none" required>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="text" name="password" required>
+      </div>
+      <div class="field">
+        <label>Starting theme</label>
+        <select name="theme">
+          {% for key, t in themes.items %}<option value="{{ key }}">{{ t.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Daily goal (pts)</label>
+        <input type="number" name="goal" value="150" min="20" max="600" step="10">
+      </div>
+      <button type="submit" class="btn-primary">Add student</button>
+    </form>
+    <p class="hint">No email needed — students just log in with this username and password.
+       ~150 points is about 15 minutes of practice.</p>
+  </div>
+
+  <div class="card">
+    <h2>Students ({{ students|length }})</h2>
+    {% if students %}
+    <table class="student-table">
+      <tr><th>Username</th><th>Theme</th><th>Goal</th><th>Mastered</th><th></th><th>Reset password</th></tr>
+      {% for s in students %}
+      <tr>
+        <td><strong>{{ s.user.username }}</strong>{% if s.user.is_staff %} <span class="badge">staff</span>{% endif %}</td>
+        <td>{{ s.theme }}</td>
+        <td>{{ s.daily_goal_points }}</td>
+        <td>{{ s.mastered }} / {{ total_facts }}</td>
+        <td><a href="{% url 'report' s.user.username %}">View report →</a></td>
+        <td>
+          <form method="post" class="reset-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reset_password">
+            <input type="hidden" name="student_id" value="{{ s.pk }}">
+            <input type="text" name="password" placeholder="new password" required>
+            <button type="submit" class="linklike-btn">Set</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="hint">No students yet — add one above.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
