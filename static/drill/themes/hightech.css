@@ -1,0 +1,26 @@
+/* High-tech theme. Optional art: static/drill/themes/hightech/background.webp */
+
+body.theme-hightech {
+  --bg: linear-gradient(180deg, #0b1224 0%, #11203c 55%, #182c4e 100%);
+  --bg-image: url('hightech/background.webp');
+  --panel: #16243d;
+  --panel-soft: #1f3252;
+  --text: #d9e7ff;
+  --text-soft: #8aa3c8;
+  --accent: #29c7e0;         /* neon cyan */
+  --accent-2: #8c5cf0;       /* plasma violet */
+  --good: #3ddc84;
+  --soft-bad: #f08c5c;
+  --btn-bg: #1b2c4a;
+  --btn-border: #2f4a78;
+  --font-display: 'Consolas', 'Menlo', monospace;
+}
+
+body.theme-hightech .topbar { background: rgba(8, 14, 30, .85); }
+body.theme-hightech .brand, body.theme-hightech .topbar a,
+body.theme-hightech .topbar .linklike { color: #9fdcff; }
+body.theme-hightech .card, body.theme-hightech .question-area,
+body.theme-hightech .model-area { border: 1px solid #2f4a78;
+  box-shadow: 0 0 18px rgba(41, 199, 224, .25); }
+body.theme-hightech .num-btn { box-shadow: 0 0 6px rgba(41, 199, 224, .25) inset; }
+body.theme-hightech .rk-white { fill: #b9cce8; }

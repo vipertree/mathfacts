@@ -1,0 +1,27 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>{% block title %}Math Facts{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'drill/css/app.css' %}">
+  {% if theme_key %}<link rel="stylesheet" href="{% static 'drill/themes/' %}{{ theme_key }}.css">{% endif %}
+</head>
+<body class="theme-{{ theme_key|default:'none' }}">
+  <header class="topbar">
+    <a class="brand" href="{% url 'home' %}">{{ theme.icon|default:'🔢' }} Math Facts</a>
+    {% if user.is_authenticated %}
+    <nav>
+      <a href="{% url 'progress' %}">My progress</a>
+      <form method="post" action="{% url 'logout' %}" class="inline-form">{% csrf_token %}
+        <button type="submit" class="linklike">Log out</button>
+      </form>
+    </nav>
+    {% endif %}
+  </header>
+  <main class="page">
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,38 @@
+{% extends 'drill/base.html' %}
+{% block title %}Home · Math Facts{% endblock %}
+{% block content %}
+<div class="home">
+  <div class="card hero">
+    <div class="mascot">{{ theme.mascot }}</div>
+    <h1>{{ theme.greeting }}, {{ user.first_name|default:user.username }}!</h1>
+
+    <div class="goal-ring {% if daily.met %}met{% endif %}">
+      <div class="goal-fill" style="--pct: {% widthratio daily.points daily.goal 100 %}%"></div>
+      <div class="goal-text">
+        {{ theme.point_icon }} {{ daily.points }} / {{ daily.goal }}
+        {% if daily.met %}<span class="goal-done">{{ theme.goal_met }}</span>{% endif %}
+      </div>
+    </div>
+
+    <a class="btn-primary btn-big" href="{% url 'practice' %}">{{ theme.practice_label }}</a>
+
+    <div class="home-stats">
+      <div><strong>{{ streak }}</strong> day streak 🔥</div>
+      <div><strong>{{ mastered_count }}</strong> / {{ total_facts }} facts mastered</div>
+    </div>
+  </div>
+
+  <div class="card theme-picker">
+    <h2>Pick your world</h2>
+    <form method="post" action="{% url 'set_theme' %}">
+      {% csrf_token %}
+      {% for key, t in themes.items %}
+      <button type="submit" name="theme" value="{{ key }}"
+              class="theme-chip {% if key == theme_key %}active{% endif %}">
+        {{ t.icon }} {{ t.name }}
+      </button>
+      {% endfor %}
+    </form>
+  </div>
+</div>
+{% endblock %}

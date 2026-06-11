@@ -1,0 +1,25 @@
+/* Pirate theme. Themes only override custom properties (plus tiny flourish
+ * rules). Optional art: static/drill/themes/pirate/background.webp — the
+ * gradient below shows wherever the image is absent. */
+
+body.theme-pirate {
+  --bg: linear-gradient(165deg, #1c3a52 0%, #2c5d7c 45%, #3e7d96 100%);
+  --bg-image: url('pirate/background.webp');
+  --panel: #f7ecd7;
+  --panel-soft: #ece0c4;
+  --text: #3a2c1c;
+  --text-soft: #7a6a52;
+  --accent: #1d6d8e;
+  --accent-2: #e3a52c;       /* doubloon gold */
+  --good: #3e8e4f;
+  --soft-bad: #b56038;
+  --btn-bg: #fdf6e6;
+  --btn-border: #cdb98e;
+  --font-display: 'Comic Sans MS', 'Chalkboard SE', 'Segoe UI', system-ui, sans-serif;
+}
+
+body.theme-pirate .topbar { background: rgba(28, 42, 56, .78); }
+body.theme-pirate .brand, body.theme-pirate .topbar a,
+body.theme-pirate .topbar .linklike { color: #f2e3bd; }
+body.theme-pirate .card, body.theme-pirate .question-area,
+body.theme-pirate .model-area { border: 3px solid #9c7c47; }

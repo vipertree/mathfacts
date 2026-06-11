@@ -1,0 +1,46 @@
+{% extends 'drill/base.html' %}
+{% block title %}Progress · Math Facts{% endblock %}
+{% block content %}
+<div class="progress-page">
+  <h1>
+    {% if report_for %}Report: {{ report_for.user.username }}{% else %}My progress{% endif %}
+  </h1>
+
+  <div class="card stat-row">
+    <div class="stat"><strong>{{ mastered_count }}</strong><span>of {{ total_facts }} mastered</span></div>
+    <div class="stat"><strong>{{ streak }}</strong><span>day streak 🔥</span></div>
+    <div class="stat">
+      <strong>{% if avg_recent_s %}{{ avg_recent_s }}s{% else %}—{% endif %}</strong>
+      <span>recent speed (goal: under 5s)</span>
+    </div>
+  </div>
+
+  <div class="card legend">
+    {% for item in legend %}
+    <span class="legend-item"><span class="cell {{ item.key }}"></span> {{ item.label }} ({{ item.count }})</span>
+    {% endfor %}
+  </div>
+
+  {% for op, rows in grids.items %}
+  <div class="card grid-card">
+    <h2>{% if op == 'add' %}Addition (+){% else %}Subtraction (−){% endif %}</h2>
+    <div class="fact-grid-scroll">
+      <table class="fact-grid">
+        <tr>
+          <th>{% if op == 'add' %}+{% else %}−{% endif %}</th>
+          {% for c in cols %}<th>{{ c }}</th>{% endfor %}
+        </tr>
+        {% for row in rows %}
+        <tr>
+          <th>{{ row.a }}</th>
+          {% for cell in row.cells %}
+          <td>{% if cell %}<span class="cell {{ cell.status }}" title="{{ cell.title }}"></span>{% endif %}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
