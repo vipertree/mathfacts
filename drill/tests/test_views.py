@@ -219,3 +219,101 @@ class ManageTests(TestCase):
             'action': 'reset_password', 'student_id': s.pk, 'password': 'new1'})
         u.refresh_from_db()
         self.assertTrue(u.check_password('new1'))
+
+
+class ReportTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command('seed_facts', verbosity=0)
+
+    def setUp(self):
+        call_command('create_student', 'kid', 'pw', verbosity=0)
+        self.student = Student.objects.get(user__username='kid')
+        self.client.login(username='kid', password='pw')
+
+    def test_progress_shows_four_levels_and_selection(self):
+        r = self.client.get(reverse('progress'))
+        self.assertEqual(r.status_code, 200)
+        for label in ('Mastered', 'Proficient', 'Needs practice', 'Not tested yet'):
+            self.assertContains(r, label)
+        self.assertTrue(r.context['can_select'])
+        self.assertContains(r, 'select-form')          # selection toolbar present
+        self.assertContains(r, 'data-fact-id')          # cells are selectable
+
+    def test_cells_show_answers(self):
+        r = self.client.get(reverse('progress'))
+        # 9 + 4 = 13 cell should carry its answer and a status title
+        self.assertContains(r, 'data-fact-id')
+        self.assertContains(r, 'Not tested yet')
+
+    def test_staff_report_has_no_selection_toolbar(self):
+        User.objects.create_user('teacher', password='pw', is_staff=True)
+        self.client.login(username='teacher', password='pw')
+        r = self.client.get(reverse('report', args=['kid']))
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.context['can_select'])
+        self.assertNotContains(r, 'select-form')
+
+
+class CustomPracticeTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command('seed_facts', verbosity=0)
+
+    def setUp(self):
+        call_command('create_student', 'kid', 'pw', verbosity=0)
+        self.student = Student.objects.get(user__username='kid')
+        self.client.login(username='kid', password='pw')
+        self.picks = list(Fact.objects.all()[:3].values_list('id', flat=True))
+
+    def test_select_saves_and_launches(self):
+        r = self.client.post(reverse('select_facts'), {'fact_ids': self.picks})
+        self.assertRedirects(r, reverse('practice_custom'))
+        self.student.refresh_from_db()
+        self.assertEqual(sorted(self.student.custom_selection), sorted(self.picks))
+
+    def test_select_ignores_bogus_ids(self):
+        self.client.post(reverse('select_facts'),
+                         {'fact_ids': self.picks + [999999]})
+        self.student.refresh_from_db()
+        self.assertEqual(sorted(self.student.custom_selection), sorted(self.picks))
+
+    def test_custom_practice_requires_a_selection(self):
+        r = self.client.get(reverse('practice_custom'))
+        self.assertRedirects(r, reverse('progress'))
+
+    def test_custom_only_serves_selected_and_skips_daily(self):
+        self.client.post(reverse('select_facts'), {'fact_ids': self.picks})
+        self.client.get(reverse('practice_custom'))  # sets custom mode
+        # several questions all come from the selected set
+        for _ in range(5):
+            q = self.client.get(reverse('api_next')).json()
+            self.assertIn(q['fact_id'], self.picks)
+            self.assertTrue(q['custom'])
+            fact = Fact.objects.get(id=q['fact_id'])
+            data = self.client.post(
+                reverse('api_answer'),
+                json.dumps({'fact_id': q['fact_id'], 'answer': fact.answer}),
+                content_type='application/json').json()
+            self.assertTrue(data['correct'])
+            self.assertEqual(data['points_earned'], 0)   # not counted
+            self.assertTrue(data['custom'])
+        # daily goal untouched...
+        self.assertEqual(DailyProgress.objects.filter(student=self.student).count(), 0)
+        # ...but the facts' progress did improve (practice still teaches)
+        self.assertTrue(FactProgress.objects.filter(
+            student=self.student, fact_id__in=self.picks, box__gte=1).exists())
+
+    def test_switching_back_to_srs_counts_again(self):
+        self.client.post(reverse('select_facts'), {'fact_ids': self.picks})
+        self.client.get(reverse('practice_custom'))
+        self.client.get(reverse('practice'))  # back to normal mode
+        q = self.client.get(reverse('api_next')).json()
+        self.assertFalse(q['custom'])
+        fact = Fact.objects.get(id=q['fact_id'])
+        data = self.client.post(
+            reverse('api_answer'),
+            json.dumps({'fact_id': q['fact_id'], 'answer': fact.answer}),
+            content_type='application/json').json()
+        self.assertGreater(data['points_earned'], 0)
+        self.assertEqual(DailyProgress.objects.filter(student=self.student).count(), 1)

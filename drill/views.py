@@ -14,7 +14,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from . import srs
 from .models import Attempt, DailyProgress, Fact, FactProgress, Student
-from .strategies import STRATEGY_MODEL
+from .strategies import STAGE_LABELS, STRATEGY_MODEL
 from .themes import THEMES, get_theme
 
 
@@ -52,6 +52,7 @@ def home(request):
         'total_facts': Fact.objects.count(),
         'show_instructions': first_time,
         'instructions': _instructions(ctx['theme'], student.daily_goal_points),
+        'custom_count': len(student.custom_selection or []),
     })
     return render(request, 'drill/home.html', ctx)
 
@@ -79,12 +80,35 @@ def _instructions(theme, goal):
 @login_required
 @ensure_csrf_cookie  # guarantee the csrftoken cookie exists for the JS POSTs
 def practice(request):
+    """Normal SRS practice. The algorithm picks every question."""
     student = _student(request)
+    request.session['practice_mode'] = 'srs'
+    return _render_practice(request, student, custom=False)
+
+
+@login_required
+@ensure_csrf_cookie
+def practice_custom(request):
+    """Practice only the facts the student selected on the grid. Does not count
+    toward the daily goal. Uses the saved selection (Student.custom_selection)."""
+    student = _student(request)
+    if not student.custom_selection:
+        messages.info(request, 'Pick some facts on the grid first, then practice just those.')
+        return redirect('progress')
+    request.session['practice_mode'] = 'custom'
+    return _render_practice(request, student, custom=True,
+                            custom_count=len(student.custom_selection))
+
+
+def _render_practice(request, student, custom, custom_count=0):
     ctx = _theme_context(student)
+    ctx['custom'] = custom
+    ctx['custom_count'] = custom_count
     # Pass a dict to json_script (it serializes); do NOT pre-dump to a string
     # or it gets double-encoded and THEME becomes a string in the browser.
     ctx['theme_data'] = {
         'key': ctx['theme_key'],
+        'custom': custom,
         'cheers': ctx['theme']['cheers'],
         'oops': ctx['theme']['oops'],
         'goal_met': ctx['theme']['goal_met'],
@@ -94,10 +118,28 @@ def practice(request):
 
 
 @login_required
+@require_POST
+def select_facts(request):
+    """Save the student's grid selection and launch custom practice."""
+    student = _student(request)
+    try:
+        ids = [int(x) for x in request.POST.getlist('fact_ids')]
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest('bad selection')
+    valid = list(Fact.objects.filter(id__in=ids).values_list('id', flat=True))
+    student.custom_selection = valid
+    student.save(update_fields=['custom_selection'])
+    if not valid:
+        messages.info(request, 'Select at least one fact to practice.')
+        return redirect('progress')
+    return redirect('practice_custom')
+
+
+@login_required
 def progress(request):
     student = _student(request)
     ctx = _theme_context(student)
-    ctx.update(_build_report(student))
+    ctx.update(_build_report(student, can_select=True))
     return render(request, 'drill/progress.html', ctx)
 
 
@@ -107,7 +149,7 @@ def report(request, username):
     target, _ = Student.objects.get_or_create(user=user)
     viewer = _student(request)
     ctx = _theme_context(viewer)
-    ctx.update(_build_report(target))
+    ctx.update(_build_report(target, can_select=False))
     ctx['report_for'] = target
     return render(request, 'drill/progress.html', ctx)
 
@@ -179,8 +221,13 @@ def manage(request):
 def api_next(request):
     student = _student(request)
     now = timezone.now()
-    prog = srs.next_question(
-        student, exclude_fact_id=request.session.get('last_fact_id'), now=now)
+    custom = request.session.get('practice_mode') == 'custom'
+    exclude = request.session.get('last_fact_id')
+    if custom:
+        prog = srs.next_custom(student, student.custom_selection or [],
+                               exclude_fact_id=exclude, now=now)
+    else:
+        prog = srs.next_question(student, exclude_fact_id=exclude, now=now)
     request.session['served'] = {'fact_id': prog.fact_id, 'at': now.timestamp()}
     fact = prog.fact
     return JsonResponse({
@@ -193,6 +240,7 @@ def api_next(request):
         'model': STRATEGY_MODEL[fact.strategy],
         'strategy': fact.strategy,
         'pace_ms': srs.FLUENT_MS[prog.scaffold],  # the real fluency window
+        'custom': custom,
         'daily': _daily_dict(student, _today(student)),
     })
 
@@ -227,18 +275,24 @@ def api_answer(request):
         response_ms=min(max(response_ms, 1), srs.MAX_RESPONSE_MS),
         scaffold_shown=prog.scaffold)
 
+    # Practicing always improves the student's stats (box, scaffold, mastery)...
     points, mastered_now = srs.apply_answer(prog, correct, response_ms, now=now)
     request.session['last_fact_id'] = fact_id
 
+    # ...but self-selected practice does NOT count toward the daily goal.
     today = _today(student)
-    daily, _ = DailyProgress.objects.get_or_create(student=student, date=today)
+    custom = request.session.get('practice_mode') == 'custom'
     goal_just_met = False
-    daily.points += points
-    daily.questions += 1
-    if not daily.goal_met and daily.points >= student.daily_goal_points:
-        daily.goal_met = True
-        goal_just_met = True
-    daily.save()
+    if custom:
+        points = 0
+    else:
+        daily, _ = DailyProgress.objects.get_or_create(student=student, date=today)
+        daily.points += points
+        daily.questions += 1
+        if not daily.goal_met and daily.points >= student.daily_goal_points:
+            daily.goal_met = True
+            goal_just_met = True
+        daily.save()
 
     return JsonResponse({
         'correct': correct,
@@ -246,7 +300,8 @@ def api_answer(request):
         'points_earned': points,
         'mastered_now': mastered_now,
         'goal_just_met': goal_just_met,
-        'daily': _daily_dict(student, today, daily=daily),
+        'custom': custom,
+        'daily': _daily_dict(student, today),
     })
 
 
@@ -285,32 +340,38 @@ def _streak(student):
     return streak
 
 
+# Four reporting levels, best to worst. PROFICIENT_BOX is the Leitner box at
+# which a fact has survived multi-day reviews (day-scale intervals start at
+# box 2; box 3+ means it has come back correct across days).
 STATUS_LABELS = {
-    'new': 'Not started',
-    'learning': 'Learning',
-    'developing': 'Getting there',
-    'known': 'Known',
     'mastered': 'Mastered',
+    'proficient': 'Proficient',
+    'practice': 'Needs practice',
+    'untested': 'Not tested yet',
 }
+STATUS_ORDER = ['mastered', 'proficient', 'practice', 'untested']
+PROFICIENT_BOX = 3
 
 
 def _status(prog):
     if prog is None:
-        return 'new'
+        return 'untested'
     if prog.mastered:
         return 'mastered'
-    if prog.box >= srs.MASTERY_BOX:
-        return 'known'
-    if prog.box > srs.LEARNING_BOX_MAX:
-        return 'developing'
-    return 'learning'
+    if prog.box >= PROFICIENT_BOX:
+        return 'proficient'
+    return 'practice'
 
 
-def _build_report(student):
+def _build_report(student, can_select=False):
     by_fact = {p.fact_id: p for p in student.progress.all()}
-    facts = Fact.objects.all()
+    facts = list(Fact.objects.all())
+    selected = set(student.custom_selection or [])
     grids = {}
     counts = {key: 0 for key in STATUS_LABELS}
+    # per-batch breakdown (teaching stage -> per-status counts)
+    batches = {s: {'label': label, 'counts': {k: 0 for k in STATUS_LABELS}, 'total': 0}
+               for s, label in STAGE_LABELS.items()}
     for op in ('add', 'sub'):
         cells = {}
         for f in facts:
@@ -318,8 +379,13 @@ def _build_report(student):
                 continue
             status = _status(by_fact.get(f.id))
             counts[status] += 1
-            cells[(f.a, f.b)] = {'status': status, 'label': str(f),
-                                 'title': f'{f} · {STATUS_LABELS[status]}'}
+            batches[f.stage]['counts'][status] += 1
+            batches[f.stage]['total'] += 1
+            cells[(f.a, f.b)] = {
+                'id': f.id, 'answer': f.answer, 'status': status,
+                'selected': f.id in selected,
+                'title': f'{f} · {STATUS_LABELS[status]}',
+            }
         rows = []
         for a in range(21):
             row = [cells.get((a, b)) for b in range(21)]
@@ -335,11 +401,14 @@ def _build_report(student):
         'grids': grids,
         'cols': list(range(21)),
         'counts': counts,
-        'legend': [{'key': k, 'label': label, 'count': counts[k]}
-                   for k, label in STATUS_LABELS.items()],
+        'legend': [{'key': k, 'label': STATUS_LABELS[k], 'count': counts[k]}
+                   for k in STATUS_ORDER],
+        'batches': [batches[s] for s in sorted(batches) if batches[s]['total']],
         'status_labels': STATUS_LABELS,
         'total_facts': total,
         'mastered_count': counts['mastered'],
         'streak': _streak(student),
         'avg_recent_s': round(recent['avg'] / 1000, 1) if recent['avg'] else None,
+        'can_select': can_select,
+        'selected_count': len(selected),
     }

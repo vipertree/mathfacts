@@ -42,6 +42,8 @@ class Student(models.Model):
     daily_goal_points = models.PositiveSmallIntegerField(default=150)
     # the how-to-play modal auto-shows once, on first login
     seen_instructions = models.BooleanField(default=False)
+    # fact ids the student last chose for self-selected ("just these") practice
+    custom_selection = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return self.user.username

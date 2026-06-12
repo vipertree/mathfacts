@@ -112,6 +112,35 @@ def next_question(student: Student, exclude_fact_id=None, now=None) -> FactProgr
     raise Fact.DoesNotExist('No facts seeded — run manage.py seed_facts')
 
 
+def next_custom(student: Student, fact_ids, exclude_fact_id=None, now=None):
+    """Pick the next fact for self-selected practice: only from `fact_ids`,
+    weakest first (untested counts as weakest), never the same fact twice in a
+    row unless it's the only one chosen. Creates a progress row on first use so
+    the visual scaffold works."""
+    now = now or timezone.now()
+    ids = [int(i) for i in fact_ids]
+    if not ids:
+        raise Fact.DoesNotExist('empty custom selection')
+    pool = [i for i in ids if i != exclude_fact_id] or ids
+    progs = {p.fact_id: p for p in
+             FactProgress.objects.filter(student=student, fact_id__in=pool)
+             .select_related('fact')}
+
+    def weakness(fid):
+        p = progs.get(fid)
+        box = -1 if p is None else p.box          # untested = weakest
+        due = now if p is None else p.due_at
+        return (box, due)
+
+    chosen = min(pool, key=weakness)
+    prog = progs.get(chosen)
+    if prog is None:
+        fact = Fact.objects.get(id=chosen)
+        prog = FactProgress.objects.create(
+            student=student, fact=fact, due_at=now, introduced_at=now)
+    return prog
+
+
 def _next_new_fact(student: Student):
     """Next unseen fact in teaching order (Fact.intro_order); the commutative
     partner of the most recently introduced addition fact jumps the queue

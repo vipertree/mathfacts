@@ -16,6 +16,10 @@
 
     <a class="btn-primary btn-big" href="{% url 'practice' %}">{{ theme.practice_label }}</a>
 
+    {% if custom_count %}
+    <div><a class="btn-secondary" href="{% url 'practice_custom' %}">🎯 Practice my set ({{ custom_count }} fact{{ custom_count|pluralize }})</a></div>
+    {% endif %}
+
     <div class="home-stats">
       <div><strong>{{ streak }}</strong> day streak 🔥</div>
       <div><strong>{{ mastered_count }}</strong> / {{ total_facts }} facts mastered</div>

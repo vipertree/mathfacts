@@ -135,8 +135,9 @@
     if (result.correct) {
       el.answer.classList.add('right');
       playSound(result.goal_just_met ? 'goal' : 'correct');
-      const msg = result.mastered_now ? '⭐ Fact mastered! ⭐'
-        : pick(THEME.cheers) + ' +' + result.points_earned + ' ' + THEME.point_icon;
+      // custom practice doesn't award points, so don't show a "+N" tally
+      const tally = THEME.custom ? '' : ' +' + result.points_earned + ' ' + THEME.point_icon;
+      const msg = result.mastered_now ? '⭐ Fact mastered! ⭐' : pick(THEME.cheers) + tally;
       feedback(msg, 'good');
       setTimeout(() => {
         el.answer.classList.remove('right');
@@ -181,7 +182,7 @@
   }
 
   function updateGoal(daily) {
-    if (!daily) return;
+    if (!daily || !el.goalFill) return;  // no goal bar in custom-practice mode
     const pct = Math.min(100, Math.round(100 * daily.points / daily.goal));
     el.goalFill.style.width = pct + '%';
     el.goalText.textContent = THEME.point_icon + ' ' + daily.points + ' / ' + daily.goal;

@@ -1,10 +1,20 @@
 {% extends 'drill/base.html' %}
+{% load static %}
 {% block title %}Progress · Math Facts{% endblock %}
 {% block content %}
-<div class="progress-page">
+<div class="progress-page" id="progress-page" data-select-url="{% url 'select_facts' %}">
   <h1>
     {% if report_for %}Report: {{ report_for.user.username }}{% else %}My progress{% endif %}
   </h1>
+
+  <div class="card level-cards">
+    {% for item in legend %}
+    <div class="level-card lvl-{{ item.key }}">
+      <strong>{{ item.count }}</strong>
+      <span>{{ item.label }}</span>
+    </div>
+    {% endfor %}
+  </div>
 
   <div class="card stat-row">
     <div class="stat"><strong>{{ mastered_count }}</strong><span>of {{ total_facts }} mastered</span></div>
@@ -15,17 +25,37 @@
     </div>
   </div>
 
+  {% if can_select %}
+  <form method="post" action="{% url 'select_facts' %}" id="select-form" class="card select-bar">
+    {% csrf_token %}
+    <div class="select-info">
+      <strong>Practice just the facts you pick.</strong>
+      <span>Tap cells in the grids below to select them. Custom practice doesn’t count toward your daily goal.</span>
+    </div>
+    <div class="select-actions">
+      <span class="select-count"><span id="sel-count">{{ selected_count }}</span> selected</span>
+      <button type="button" class="btn-secondary" id="sel-clear">Clear</button>
+      <button type="submit" class="btn-primary" id="sel-go" {% if not selected_count %}disabled{% endif %}>
+        Practice <span id="sel-count2">{{ selected_count }}</span> facts
+      </button>
+    </div>
+    <!-- selected fact ids are mirrored here as hidden inputs by progress JS -->
+    <div id="sel-inputs" hidden></div>
+  </form>
+  {% endif %}
+
   <div class="card legend">
     {% for item in legend %}
     <span class="legend-item"><span class="cell {{ item.key }}"></span> {{ item.label }} ({{ item.count }})</span>
     {% endfor %}
+    {% if can_select %}<span class="legend-item legend-hint">Tap a cell to add it to your practice set.</span>{% endif %}
   </div>
 
   {% for op, rows in grids.items %}
   <div class="card grid-card">
     <h2>{% if op == 'add' %}Addition (+){% else %}Subtraction (−){% endif %}</h2>
     <div class="fact-grid-scroll">
-      <table class="fact-grid">
+      <table class="fact-grid {% if can_select %}selectable{% endif %}">
         <tr>
           <th>{% if op == 'add' %}+{% else %}−{% endif %}</th>
           {% for c in cols %}<th>{{ c }}</th>{% endfor %}
@@ -34,7 +64,8 @@
         <tr>
           <th>{{ row.a }}</th>
           {% for cell in row.cells %}
-          <td>{% if cell %}<span class="cell {{ cell.status }}" title="{{ cell.title }}"></span>{% endif %}</td>
+          <td>{% if cell %}<span class="cell {{ cell.status }}{% if cell.selected %} selected{% endif %}"
+                  title="{{ cell.title }}" data-fact-id="{{ cell.id }}">{{ cell.answer }}</span>{% endif %}</td>
           {% endfor %}
         </tr>
         {% endfor %}
@@ -42,5 +73,31 @@
     </div>
   </div>
   {% endfor %}
+
+  <div class="card batch-card">
+    <h2>Progress by batch</h2>
+    <p class="hint">Facts are introduced in these batches, easiest first.</p>
+    <table class="batch-table">
+      {% for b in batches %}
+      <tr>
+        <td class="batch-label">{{ b.label }}</td>
+        <td class="batch-bar-cell">
+          <div class="batch-bar" title="{{ b.counts.mastered }} mastered, {{ b.counts.proficient }} proficient, {{ b.counts.practice }} need practice, {{ b.counts.untested }} untested">
+            <span class="seg mastered" style="width:{% widthratio b.counts.mastered b.total 100 %}%"></span>
+            <span class="seg proficient" style="width:{% widthratio b.counts.proficient b.total 100 %}%"></span>
+            <span class="seg practice" style="width:{% widthratio b.counts.practice b.total 100 %}%"></span>
+          </div>
+        </td>
+        <td class="batch-num">{{ b.counts.mastered }}/{{ b.total }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if can_select %}
+<script src="{% static 'drill/js/select.js' %}"></script>
+{% endif %}
 {% endblock %}

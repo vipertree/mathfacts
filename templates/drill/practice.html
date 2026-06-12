@@ -7,10 +7,17 @@
      data-answer-url="{% url 'api_answer' %}"
      data-home-url="{% url 'home' %}">
 
+  {% if custom %}
+  <div class="custom-banner">
+    <span>🎯 Practice set: {{ custom_count }} fact{{ custom_count|pluralize }} · doesn’t count toward your daily goal</span>
+    <a href="{% url 'progress' %}">Change selection</a>
+  </div>
+  {% else %}
   <div class="goal-bar">
     <div class="goal-bar-fill" id="goal-fill"></div>
     <span class="goal-bar-text" id="goal-text"></span>
   </div>
+  {% endif %}
 
   <div class="question-area">
     <div class="equation" id="equation">

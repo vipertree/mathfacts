@@ -14,6 +14,8 @@ urlpatterns = [
     path('password/done/', auth_views.PasswordChangeDoneView.as_view(
         template_name='drill/password_change_done.html'), name='password_change_done'),
     path('practice/', views.practice, name='practice'),
+    path('practice/custom/', views.practice_custom, name='practice_custom'),
+    path('select/', views.select_facts, name='select_facts'),
     path('progress/', views.progress, name='progress'),
     path('manage/', views.manage, name='manage'),
     path('report/<str:username>/', views.report, name='report'),

@@ -275,23 +275,72 @@ body {
 
 /* ---------- progress page */
 .progress-page h1 { font-family: var(--font-display); }
+
+/* four-level summary cards */
+.level-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.level-card { text-align: center; padding: 14px 8px; border-radius: 12px; color: #fff; }
+.level-card strong { display: block; font-size: 1.8rem; font-family: var(--font-display); line-height: 1.1; }
+.level-card span { font-size: .82rem; }
+.level-card.lvl-mastered { background: #3f9d57; }
+.level-card.lvl-proficient { background: #5b9bd5; }
+.level-card.lvl-practice { background: #e8915a; }
+.level-card.lvl-untested { background: var(--panel-soft); color: var(--text-soft); }
+
 .stat-row { display: flex; gap: 26px; justify-content: space-around; text-align: center; }
 .stat strong { display: block; font-size: 1.7rem; font-family: var(--font-display); }
 .stat span { color: var(--text-soft); font-size: .9rem; }
-.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .9rem; padding: 14px 22px; }
+
+/* selection toolbar */
+.select-bar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
+.select-info strong { display: block; }
+.select-info span { color: var(--text-soft); font-size: .88rem; }
+.select-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.select-count { font-weight: 700; }
+.select-actions .btn-secondary, .select-actions .btn-primary { margin-top: 0; }
+.btn-primary:disabled { opacity: .5; cursor: default; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .9rem; padding: 14px 22px; align-items: center; }
 .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend .cell { width: 16px; height: 16px; }
+.legend-hint { color: var(--text-soft); font-style: italic; }
+
 .grid-card h2 { font-family: var(--font-display); margin-top: 0; }
 .fact-grid-scroll { overflow-x: auto; }
-.fact-grid { border-collapse: collapse; }
-.fact-grid th { font-size: .68rem; color: var(--text-soft); padding: 1px 2px;
-                font-weight: 600; min-width: 18px; }
-.fact-grid td { padding: 1px; }
-.cell { display: block; width: 17px; height: 17px; border-radius: 4px; }
-.cell.new { background: var(--panel-soft); border: 1px solid var(--btn-border); }
-.cell.learning { background: #f3c66a; }
-.cell.developing { background: #8fc7f0; }
-.cell.known { background: #6aa9e8; }
-.cell.mastered { background: var(--good); }
+.fact-grid { border-collapse: separate; border-spacing: 2px; }
+.fact-grid th { font-size: .7rem; color: var(--text-soft); padding: 1px 2px;
+                font-weight: 700; min-width: 20px; }
+.fact-grid td { padding: 0; }
+
+/* a cell shows the answer, colored by mastery level */
+.cell { display: inline-flex; align-items: center; justify-content: center;
+        width: 26px; height: 24px; border-radius: 5px; font-size: 11px; font-weight: 700; }
+.cell.untested { background: var(--panel-soft); border: 1px solid var(--btn-border); color: var(--text-soft); }
+.cell.practice { background: #e8915a; color: #fff; }
+.cell.proficient { background: #5b9bd5; color: #fff; }
+.cell.mastered { background: #3f9d57; color: #fff; }
+.fact-grid.selectable .cell[data-fact-id] { cursor: pointer; }
+.fact-grid.selectable .cell[data-fact-id]:hover { filter: brightness(1.08); }
+.cell.selected { box-shadow: 0 0 0 3px var(--accent); position: relative; z-index: 1; }
+
+/* per-batch progress */
+.batch-card h2 { font-family: var(--font-display); margin-top: 0; margin-bottom: 4px; }
+.batch-table { width: 100%; border-collapse: collapse; }
+.batch-table td { padding: 6px 8px; vertical-align: middle; }
+.batch-label { font-size: .9rem; }
+.batch-bar-cell { width: 100%; }
+.batch-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--panel-soft); }
+.batch-bar .seg { height: 100%; }
+.batch-bar .seg.mastered { background: #3f9d57; }
+.batch-bar .seg.proficient { background: #5b9bd5; }
+.batch-bar .seg.practice { background: #e8915a; }
+.batch-num { font-size: .82rem; color: var(--text-soft); white-space: nowrap; text-align: right; }
+
+/* custom-practice banner (replaces the goal bar) */
+.custom-banner { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between;
+  align-items: center; background: color-mix(in srgb, var(--accent) 15%, var(--panel));
+  border: 2px solid var(--accent); border-radius: 14px; padding: 10px 16px;
+  margin-bottom: 14px; font-weight: 600; }
+.custom-banner a { color: var(--accent); font-weight: 700; }
 
 @media (max-width: 540px) {
   .page { padding: 10px; }
