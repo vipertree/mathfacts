@@ -12,8 +12,9 @@ class StudentAdmin(admin.ModelAdmin):
 
 @admin.register(Fact)
 class FactAdmin(admin.ModelAdmin):
-    list_display = ['__str__', 'operation', 'strategy', 'stage']
-    list_filter = ['operation', 'strategy', 'stage']
+    list_display = ['__str__', 'operation', 'strategy', 'stage', 'intro_order']
+    list_filter = ['operation', 'stage', 'strategy']
+    ordering = ['intro_order']
     search_fields = ['a', 'b']
 
     def has_add_permission(self, request):

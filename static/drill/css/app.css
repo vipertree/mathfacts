@@ -63,6 +63,7 @@ body {
 .ui-btn:hover { border-color: var(--accent); }
 .ui-btn:active { transform: translateY(1px); }
 .ui-btn.muted { opacity: .55; }
+.zoom-sign { font-weight: 800; margin-left: 1px; }
 
 .page { max-width: 880px; margin: 0 auto; padding: 18px; }
 

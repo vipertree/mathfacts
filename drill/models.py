@@ -18,13 +18,14 @@ class Fact(models.Model):
     b = models.PositiveSmallIntegerField()
     answer = models.PositiveSmallIntegerField()
     strategy = models.CharField(max_length=32)
-    stage = models.PositiveSmallIntegerField(db_index=True)
+    stage = models.PositiveSmallIntegerField(db_index=True)  # teaching batch 1-8
+    intro_order = models.PositiveSmallIntegerField(default=0, db_index=True)  # SRS introduces in this order
 
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['operation', 'a', 'b'], name='unique_fact'),
         ]
-        ordering = ['stage', 'operation', 'a', 'b']
+        ordering = ['intro_order']
 
     @property
     def symbol(self):

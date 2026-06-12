@@ -9,10 +9,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         created = updated = 0
-        for op, a, b, answer, strategy, stage in generate_facts():
+        for op, a, b, answer, strategy, stage, intro_order in generate_facts():
             _, was_created = Fact.objects.update_or_create(
                 operation=op, a=a, b=b,
-                defaults={'answer': answer, 'strategy': strategy, 'stage': stage})
+                defaults={'answer': answer, 'strategy': strategy,
+                          'stage': stage, 'intro_order': intro_order})
             created += was_created
             updated += not was_created
         self.stdout.write(self.style.SUCCESS(

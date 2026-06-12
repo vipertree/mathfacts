@@ -1,19 +1,34 @@
 """
-Strategy/stage classification for math facts.
+Two independent things are decided here for every fact:
 
-Every fact gets a (strategy, stage) at seed time:
+1. **strategy** (``strategy_for``) — the mental strategy we want the visual
+   model to evoke (make-ten, near-doubles, back-to-ten, ...). ``STRATEGY_MODEL``
+   maps each strategy to the picture that best shows it. This drives *what the
+   student sees*, not when they see it.
 
-- ``strategy`` names the mental strategy we want the visual model to evoke
-  (make-ten, near-doubles, back-to-ten, ...). STRATEGY_MODEL maps each
-  strategy to the visual model that best depicts it.
-- ``stage`` is the global teaching order. The SRS introduces new facts in
-  stage order, interleaving subtraction right after the addition ideas it
-  builds on (fact families: doubles -> halves, combos of 10 -> subtract
-  from 10, make-ten -> bridging subtraction).
+2. **teaching order** (``stage_for`` + ``generate_facts``) — *when* a fact is
+   introduced. Order is driven by **magnitude first**, not by strategy: all
+   facts within ten come before any teen-result fact, so a trivial ``14 + 0``
+   never appears before ``5 + 5``. Batches are broad and mix strategies inside
+   them, so practice stays varied instead of grinding "+0, then +1, then +2".
 
-Extending to multiplication/division later = new operation branch in
-classify() + new strategies/stages; nothing else in the app hard-codes
-the current set.
+   The eight batches (``STAGE_LABELS``):
+     1 add, both addends 0-5            (sums to 10, small)
+     2 sub, minuend 0-5
+     3 add, rest of sums to 10          (one addend 6-10, e.g. 7+3, 9+1)
+     4 sub, minuend 6-10
+     5 add, teen result with a 10-19 addend (place value: 13+4, 10+6, no bridge)
+     6 sub, teen minuend, no regrouping (17-5, 19-3, 17-10)
+     7 add, teen result, both addends <=9 (bridging ten: 9+4, 8+6, doubles)
+     8 sub, teen minuend, regrouping    (13-5, 14-9, 12-6)
+
+   Within a batch facts are ordered by total/magnitude with the balanced ones
+   (doubles, halves) first and the trivial +0/-0 ones last, which keeps the
+   opening varied. The absolute sequence position is stored as ``intro_order``
+   and is what the SRS introduces in.
+
+Extending to multiplication/division later = new branches in strategy_for /
+stage_for; nothing else in the app hard-codes the current set.
 """
 
 # Visual model ids understood by static/drill/js/models/*.js
@@ -49,41 +64,51 @@ STRATEGY_MODEL = {
     'take_from_ten': TEN_FRAME,   # 14-9: take 9 from the full frame, add 4 back
 }
 
-# Teaching order. Numbers are global; subtraction follows the addition idea
-# it leans on. (Stage values are persisted on Fact rows by seed_facts —
-# reordering means reseeding.)
-STAGES = {
-    'add_zero': 1, 'count_on_1': 1,
-    'sub_zero': 2, 'count_back_1': 2,
-    'count_on_2': 3,
-    'count_back_2': 4, 'count_up': 4,
-    'doubles': 5,
-    'halves': 6,
-    'combos_of_10': 7,
-    'subtract_from_10': 8,
-    'plus_ten': 9, 'teen_structure': 9,
-    'minus_ten': 10, 'teens_minus_ones': 10, 'teen_parts': 10,
-    'near_doubles': 11,
-    'add_within_10': 12,
-    'think_addition': 13,
-    'make_ten': 14,
-    'back_to_ten': 15,
-    'take_from_ten': 16,
+STAGE_LABELS = {
+    1: 'Addition within 5',
+    2: 'Subtraction within 5',
+    3: 'Addition: sums to 10',
+    4: 'Subtraction within 10',
+    5: 'Tens & teens (no regrouping)',
+    6: 'Teen subtraction (no regrouping)',
+    7: 'Addition: bridging ten',
+    8: 'Subtraction: through ten',
 }
 
 
-def classify(operation, a, b):
-    """Return (strategy, stage) for a fact. Order of checks is precedence."""
+def strategy_for(operation, a, b):
+    """Return the strategy id (drives the visual model). Check order is
+    precedence."""
     if operation == 'add':
-        strategy = _classify_add(a, b)
-    elif operation == 'sub':
-        strategy = _classify_sub(a, b)
-    else:
-        raise ValueError(f'unknown operation: {operation}')
-    return strategy, STAGES[strategy]
+        return _strategy_add(a, b)
+    if operation == 'sub':
+        return _strategy_sub(a, b)
+    raise ValueError(f'unknown operation: {operation}')
 
 
-def _classify_add(a, b):
+def stage_for(operation, a, b):
+    """Return the teaching batch (1-8) for a fact. Magnitude first: every
+    within-ten fact (stages 1-4) precedes every teen-result fact (5-8)."""
+    if operation == 'add':
+        s, hi = a + b, max(a, b)
+        if hi <= 5:          # both addends 0-5
+            return 1
+        if s <= 10:          # rest of the sums-to-10 facts (one addend 6-10)
+            return 3
+        if hi >= 10:         # teen result with a 10-19 addend: place value, no bridge
+            return 5
+        return 7             # both addends <= 9, sum 11-20: bridging ten
+    # subtraction (invariant from generation: 0 <= b <= a <= 20)
+    if a <= 5:
+        return 2
+    if a <= 10:
+        return 4
+    if b == 10 or b <= a % 10 or (a - b) >= 10:   # teen minuend, no ten-crossing
+        return 6
+    return 8                                       # teen minuend, regroups through ten
+
+
+def _strategy_add(a, b):
     lo, hi = min(a, b), max(a, b)
     if lo == 0:
         return 'add_zero'
@@ -106,8 +131,7 @@ def _classify_add(a, b):
     return 'add_within_10'
 
 
-def _classify_sub(a, b):
-    # invariant from fact generation: 0 <= b <= a <= 20
+def _strategy_sub(a, b):
     if b == 0 or a == b:
         return 'sub_zero'
     if b == 1:
@@ -128,21 +152,38 @@ def _classify_sub(a, b):
             return 'teens_minus_ones'
         if b < ones:
             return 'teen_parts'
-        # crossing the ten (or subtracting from the full 20)
         if b >= 7 or ones == 0:
             return 'take_from_ten'
         return 'back_to_ten'
     return 'think_addition'
 
 
-def generate_facts():
-    """Yield (operation, a, b, answer, strategy, stage) for the full
-    addition/subtraction domain with sums/minuends <= 20."""
+def _within_batch_key(operation, a, b):
+    """Order inside a batch: grow by total/magnitude, put the balanced facts
+    (doubles, halves) first and the trivial +0 / -0 facts last, so the opening
+    of each batch is varied rather than a run of zero facts."""
+    if operation == 'add':
+        return (a + b, abs(a - b), a)
+    # subtraction: minuend grows; within a minuend, 'halves' (b ~ a/2) first
+    return (a, abs(a - 2 * b), b)
+
+
+def teaching_sequence():
+    """All facts in the exact order they should be introduced."""
+    facts = []
     for a in range(21):
         for b in range(21):
             if a + b <= 20:
-                strategy, stage = classify('add', a, b)
-                yield ('add', a, b, a + b, strategy, stage)
+                facts.append(('add', a, b, a + b))
             if b <= a:
-                strategy, stage = classify('sub', a, b)
-                yield ('sub', a, b, a - b, strategy, stage)
+                facts.append(('sub', a, b, a - b))
+    facts.sort(key=lambda f: (stage_for(f[0], f[1], f[2]),
+                              _within_batch_key(f[0], f[1], f[2])))
+    return facts
+
+
+def generate_facts():
+    """Yield (operation, a, b, answer, strategy, stage, intro_order) for the
+    full addition/subtraction domain (sums/minuends <= 20), in teaching order."""
+    for intro_order, (op, a, b, answer) in enumerate(teaching_sequence()):
+        yield (op, a, b, answer, strategy_for(op, a, b), stage_for(op, a, b), intro_order)

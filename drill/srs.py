@@ -113,8 +113,9 @@ def next_question(student: Student, exclude_fact_id=None, now=None) -> FactProgr
 
 
 def _next_new_fact(student: Student):
-    """Next unseen fact in stage order; the commutative partner of the most
-    recently introduced addition fact jumps the queue (cheap transfer)."""
+    """Next unseen fact in teaching order (Fact.intro_order); the commutative
+    partner of the most recently introduced addition fact jumps the queue
+    (cheap transfer)."""
     seen = FactProgress.objects.filter(student=student)
     last = seen.order_by('-introduced_at', '-id').select_related('fact').first()
     if last and last.fact.operation == 'add' and last.fact.a != last.fact.b:
@@ -124,7 +125,7 @@ def _next_new_fact(student: Student):
             return partner
     return (Fact.objects
             .exclude(id__in=seen.values('fact_id'))
-            .order_by('stage', 'operation', 'a', 'b')
+            .order_by('intro_order')
             .first())
 
 
