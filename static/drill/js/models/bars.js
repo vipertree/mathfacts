@@ -1,49 +1,69 @@
-/* Part-part-whole bar diagram.
+/* Segmented part-whole bar(s).
  *
- * add: two known parts, whole = ?
- * sub: known whole (a), known part (b), other part = ?
- * Any value over 10 gets a dashed 10-divider so teen structure (13 = 10 + 3)
- * is visible — that's the strategy for plus_ten / teen facts.
+ * Every quantity is drawn as a row of unit cells, and a bar holds at most ten
+ * cells: anything bigger wraps onto another bar. So a teen quantity always
+ * shows as a full ten plus the leftover (4 + 11 -> the whole is 15 cells = a
+ * bar of ten and a bar of five), which is exactly the place-value / make-ten
+ * idea these facts are about.
+ *
+ * add: the whole (a+b) as one run of `a` cells (colour A) then `b` cells
+ *      (colour B), wrapping at ten; the total is the unknown answer.
+ * sub: the whole `a` cells, with the last `b` crossed out (taken away); the
+ *      cells left over (colour A) are the unknown answer.
  */
 (function () {
   window.MFModels = window.MFModels || {};
 
-  const W = 560, BARH = 46, GAP = 14, PADX = 16, PADY = 10;
+  const PER_ROW = 10, CW = 28, CH = 30, GAP = 3, ROW_GAP = 12;
+  const PADX = 10, PAD_TOP = 28, PAD_BOTTOM = 12;
 
-  function seg(x, y, w, label, cls, splitAtTen, value) {
-    let s = `<rect x="${x}" y="${y}" width="${w}" height="${BARH}" rx="8" class="bar ${cls}"/>` +
-            `<text x="${x + w / 2}" y="${y + BARH / 2 + 7}" class="bar-label">${label}</text>`;
-    if (splitAtTen && value > 10) {
-      const tx = x + w * (10 / value);
-      s += `<line x1="${tx}" y1="${y + 4}" x2="${tx}" y2="${y + BARH - 4}" class="bar-split"/>` +
-           `<text x="${x + w * (10 / value) / 2}" y="${y - 4}" class="bar-tiny">10</text>` +
-           `<text x="${tx + (x + w - tx) / 2}" y="${y - 4}" class="bar-tiny">${value - 10}</text>`;
+  const colX = i => PADX + (i % PER_ROW) * (CW + GAP);
+  const rowY = i => PAD_TOP + Math.floor(i / PER_ROW) * (CH + ROW_GAP);
+
+  function cell(i, cls, removed) {
+    const x = colX(i), y = rowY(i);
+    let s = `<rect x="${x}" y="${y}" width="${CW}" height="${CH}" rx="4" class="bar-cell ${cls}"/>`;
+    if (removed) {
+      const m = 6;
+      s += `<line x1="${x + m}" y1="${y + m}" x2="${x + CW - m}" y2="${y + CH - m}" class="bar-cell-x"/>` +
+           `<line x1="${x + m}" y1="${y + CH - m}" x2="${x + CW - m}" y2="${y + m}" class="bar-cell-x"/>`;
     }
     return s;
   }
 
-  window.MFModels.bars = function (container, q) {
-    const whole = q.op === 'add' ? q.a + q.b : q.a;
-    const innerW = W - PADX * 2;
-    const px = v => Math.max(innerW * (v / whole), 44); // floor so tiny parts stay tappable/readable
-    const H = PADY * 2 + BARH * 2 + GAP + 14;
-    const yTop = PADY + 14, yBot = yTop + BARH + GAP;
-    let s = '';
+  function label(i, text, cls) {
+    const x = colX(i) + CW / 2, y = rowY(i) - 8;
+    return `<text x="${x}" y="${y}" class="${cls}">${text}</text>`;
+  }
 
+  window.MFModels.bars = function (container, q) {
+    const total = q.op === 'add' ? q.a + q.b : q.a;
+    if (total < 1) { container.innerHTML = ''; return; }
+
+    let cells = '', labels = '';
     if (q.op === 'add') {
-      s += seg(PADX, yTop, innerW, '?', 'bar-unknown', false, 0);
-      let wA = px(q.a), wB = px(q.b);
-      const scale = innerW / (wA + wB); wA *= scale; wB *= scale;
-      s += seg(PADX, yBot, wA - 3, q.a, 'bar-part-a', true, q.a);
-      s += seg(PADX + wA + 3, yBot, wB - 3, q.b, 'bar-part-b', true, q.b);
+      for (let i = 0; i < total; i++)
+        cells += cell(i, i < q.a ? 'bar-cell-a' : 'bar-cell-b');
+      if (q.a > 0) labels += label(0, q.a, 'bar-num');
+      if (q.b > 0) labels += label(q.a, q.b, 'bar-num');
+      // the whole is the unknown — mark the end of the last cell with "= ?"
+      const last = total - 1;
+      labels += `<text x="${colX(last) + CW + 12}" y="${rowY(last) + CH / 2 + 7}" class="bar-q">= ?</text>`;
     } else {
-      s += seg(PADX, yTop, innerW, q.a, 'bar-whole', true, q.a);
-      let wB = px(q.b), wRest = px(q.a - q.b);
-      const scale = innerW / (wB + wRest); wB *= scale; wRest *= scale;
-      s += seg(PADX, yBot, wRest - 3, '?', 'bar-unknown', false, 0);
-      s += seg(PADX + wRest + 3, yBot, wB - 3, q.b, 'bar-part-b', false, q.b);
+      const remain = q.a - q.b;
+      for (let i = 0; i < total; i++) {
+        const removed = i >= remain;
+        cells += cell(i, removed ? 'bar-cell-removed' : 'bar-cell-a', removed);
+      }
+      if (remain > 0) labels += label(0, '?', 'bar-q-label');
+      if (q.b > 0) labels += label(remain, q.b, 'bar-num');
     }
+
+    const cols = Math.min(total, PER_ROW);
+    const rows = Math.ceil(total / PER_ROW);
+    const W = PADX * 2 + cols * CW + (cols - 1) * GAP + (q.op === 'add' ? 52 : 0);
+    const H = PAD_TOP + rows * CH + (rows - 1) * ROW_GAP + PAD_BOTTOM;
     container.innerHTML =
-      `<svg viewBox="0 0 ${W} ${H}" class="model-svg bars-svg" role="img" aria-label="bar diagram">${s}</svg>`;
+      `<svg viewBox="0 0 ${W} ${H}" class="model-svg bars-svg" role="img" aria-label="bar diagram">${cells}${labels}</svg>`;
   };
 })();

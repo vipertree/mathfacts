@@ -264,14 +264,15 @@ body {
 .rk-bead.rk-extra { stroke: var(--accent); stroke-width: 4; }
 .rk-cross { stroke: var(--text); stroke-width: 2.5; stroke-linecap: round; }
 
-.bar { stroke: var(--text); stroke-width: 2; }
-.bar-whole, .bar-part-a { fill: color-mix(in srgb, var(--accent) 70%, white); }
-.bar-part-b { fill: color-mix(in srgb, var(--accent-2) 80%, white); }
-.bar-unknown { fill: var(--panel-soft); stroke-dasharray: 7 5; }
-.bar-label { fill: var(--text); font-size: 22px; font-weight: bold; text-anchor: middle;
-             font-family: var(--font-display); }
-.bar-split { stroke: var(--text); stroke-width: 2; stroke-dasharray: 5 4; }
-.bar-tiny { fill: var(--text-soft); font-size: 12px; text-anchor: middle; }
+.bar-cell { stroke: var(--text); stroke-width: 2; }
+.bar-cell-a { fill: color-mix(in srgb, var(--accent) 70%, white); }
+.bar-cell-b { fill: color-mix(in srgb, var(--accent-2) 80%, white); }
+.bar-cell-removed { fill: var(--panel-soft); }
+.bar-cell-x { stroke: var(--soft-bad); stroke-width: 3; stroke-linecap: round; }
+.bar-num { fill: var(--text); font-size: 17px; font-weight: bold; text-anchor: middle;
+           font-family: var(--font-display); }
+.bar-q, .bar-q-label { fill: var(--text); font-size: 19px; font-weight: bold;
+                       text-anchor: middle; font-family: var(--font-display); }
 
 /* ---------- progress page */
 .progress-page h1 { font-family: var(--font-display); }

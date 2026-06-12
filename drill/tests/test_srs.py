@@ -127,6 +127,17 @@ class NextQuestionTests(TestCase):
         self.assertEqual(prog.fact.stage, 1)
         self.assertEqual(prog.box, 0)
 
+    def test_introduction_is_randomized_within_the_batch(self):
+        # the first introduced fact stays in batch 1 but varies between
+        # students (not a rigid, identical sequence for everyone)
+        firsts = set()
+        for i in range(20):
+            s = make_student(f'kid{i}')
+            prog = srs.next_question(s, now=self.now)
+            self.assertEqual(prog.fact.stage, 1)
+            firsts.add(prog.fact_id)
+        self.assertGreater(len(firsts), 1)
+
     def test_commutative_partner_introduced_next(self):
         first = srs.next_question(self.student, now=self.now)
         # push the first fact out of "due" so introduction logic runs again

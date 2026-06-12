@@ -141,10 +141,15 @@ def next_custom(student: Student, fact_ids, exclude_fact_id=None, now=None):
     return prog
 
 
+NEW_FACT_WINDOW = 8  # randomize introduction among the next few facts of a batch
+
+
 def _next_new_fact(student: Student):
-    """Next unseen fact in teaching order (Fact.intro_order); the commutative
-    partner of the most recently introduced addition fact jumps the queue
-    (cheap transfer)."""
+    """Introduce a new fact. Batches (Fact.stage) are still respected in order,
+    but *within* the current batch we pick randomly from the next few unseen
+    facts (NEW_FACT_WINDOW) so the sequence isn't rigidly methodical. The
+    commutative partner of the most recently introduced addition fact still
+    jumps the queue (cheap transfer)."""
     seen = FactProgress.objects.filter(student=student)
     last = seen.order_by('-introduced_at', '-id').select_related('fact').first()
     if last and last.fact.operation == 'add' and last.fact.a != last.fact.b:
@@ -152,10 +157,13 @@ def _next_new_fact(student: Student):
             operation='add', a=last.fact.b, b=last.fact.a).first()
         if partner and not seen.filter(fact=partner).exists():
             return partner
-    return (Fact.objects
-            .exclude(id__in=seen.values('fact_id'))
-            .order_by('intro_order')
-            .first())
+    unseen = Fact.objects.exclude(id__in=seen.values('fact_id')).order_by('intro_order')
+    first = unseen.first()
+    if first is None:
+        return None
+    # stay inside the lowest unseen batch, but shuffle a bit within it
+    window = list(unseen.filter(stage=first.stage)[:NEW_FACT_WINDOW])
+    return random.choice(window)
 
 
 def apply_answer(progress: FactProgress, correct: bool, response_ms: int, now=None):
