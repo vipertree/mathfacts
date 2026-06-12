@@ -65,13 +65,13 @@ def _instructions(theme, goal):
         'title': theme['instructions_title'],
         'intro': theme['instructions_intro'].format(goal=goal),
         'steps': [
-            ('🔢', 'Tap any number from 0 to 20 — or type it and press Enter.'),
-            ('👀', 'Pictures like ten-frames and number lines help you see the '
+            ('🔢', 'Tap any number from 0 to 20, or type it and press Enter.'),
+            ('👀', 'Pictures such as ten-frames and number lines help you see the '
                    'math. They fade away as you get faster.'),
             ('⚡', f'Answer quickly to earn the most {points}! Aim to solve every '
                    'fact in under 5 seconds with no picture.'),
-            ('📅', f'Practice a little every day — the bar at the top fills up as '
-                   f'you collect {points}.'),
+            ('📅', f'Practice a little every day, and the bar at the top fills up '
+                   f'as you collect {points}.'),
         ],
     }
 
@@ -128,7 +128,7 @@ def set_theme(request):
 @staff_member_required
 def manage(request):
     """Teacher dashboard: add students, reset their passwords, jump to reports.
-    Students are created here or via `manage.py create_student` — never by
+    Students are created here or via `manage.py create_student`, never by
     self-signup, and never with an email."""
     if request.method == 'POST':
         action = request.POST.get('action')

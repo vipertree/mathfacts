@@ -2,7 +2,7 @@
 Visual theme registry. Adding a theme = one entry here + one CSS file at
 static/drill/themes/<key>.css (custom-property overrides; see pirate.css).
 
-Optional image slots (all gracefully absent — the app ships on CSS + emoji):
+Optional image slots (all gracefully absent; the app ships on CSS + emoji):
     static/drill/themes/<key>/background.webp   full-page backdrop
     static/drill/themes/<key>/mascot.webp       replaces the mascot emoji
 """
@@ -33,7 +33,7 @@ THEMES = {
         'point_icon': '🔋',
         'cheers': ['Systems optimal!', 'Upload complete!', 'Calculation verified!',
                    'Power surge!', 'Circuits firing!'],
-        'oops': ['Recalibrating…', 'Glitch detected — rerouting.'],
+        'oops': ['Recalibrating…', 'Glitch detected. Rerouting.'],
         'goal_met': 'Daily mission complete! 🚀',
         'practice_label': 'Launch!',
         'instructions_title': '🛰️ Mission Briefing',
