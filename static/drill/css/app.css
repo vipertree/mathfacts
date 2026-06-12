@@ -14,8 +14,8 @@
   --btn-bg: #ffffff;
   --btn-border: #c6d2e4;
   --radius: 16px;
-  --font-display: 'Comic Sans MS', 'Chalkboard SE', 'Segoe UI', system-ui, sans-serif;
-  --font-body: 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Fredoka', 'Trebuchet MS', system-ui, sans-serif;
+  --font-body: 'Nunito', 'Segoe UI', system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -36,17 +36,33 @@ body {
 
 .topbar {
   display: flex; justify-content: space-between; align-items: center;
+  gap: 14px; flex-wrap: wrap;
   padding: 10px 18px;
   background: color-mix(in srgb, var(--panel) 80%, transparent);
   backdrop-filter: blur(4px);
 }
 .brand { font-family: var(--font-display); font-size: 1.3rem; font-weight: bold;
          color: var(--text); text-decoration: none; }
-.topbar nav { display: flex; gap: 16px; align-items: center; }
+.topbar-right { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.topbar nav { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
 .topbar a { color: var(--text-soft); text-decoration: none; font-weight: 600; }
+.topbar a:hover { color: var(--text); }
 .inline-form { display: inline; }
 .linklike { background: none; border: none; color: var(--text-soft); font-weight: 600;
-            cursor: pointer; font-size: 1rem; padding: 0; }
+            cursor: pointer; font-size: 1rem; padding: 0; font-family: var(--font-body); }
+.linklike:hover { color: var(--text); }
+
+/* zoom + sound controls */
+.ui-controls { display: flex; gap: 6px; align-items: center; }
+.ui-btn {
+  min-width: 38px; height: 34px; padding: 0 10px;
+  border: 2px solid var(--btn-border); border-radius: 9px;
+  background: var(--btn-bg); color: var(--text);
+  font-weight: 700; font-size: 1rem; cursor: pointer; line-height: 1;
+}
+.ui-btn:hover { border-color: var(--accent); }
+.ui-btn:active { transform: translateY(1px); }
+.ui-btn.muted { opacity: .55; }
 
 .page { max-width: 880px; margin: 0 auto; padding: 18px; }
 
@@ -99,6 +115,14 @@ body {
 }
 .btn-primary:active { transform: translateY(2px); box-shadow: none; }
 .btn-big { font-size: 1.6rem; padding: 16px 48px; margin: 18px 0; }
+.btn-secondary {
+  display: inline-block; margin-top: 14px;
+  background: var(--panel-soft); color: var(--text);
+  font-family: var(--font-display); font-size: 1rem; font-weight: 700;
+  border: 2px solid var(--btn-border); border-radius: 999px;
+  padding: 9px 22px; cursor: pointer;
+}
+.btn-secondary:hover { border-color: var(--accent); }
 
 /* ---------- login */
 .login-card { max-width: 380px; margin: 8vh auto; text-align: center; }
@@ -124,9 +148,16 @@ body {
 .home-stats strong { color: var(--text); font-size: 1.2rem; }
 
 .theme-picker h2 { font-family: var(--font-display); font-size: 1.05rem; margin-top: 0; }
-.theme-chip { font-size: 1rem; padding: 10px 18px; margin: 4px; cursor: pointer;
-              border: 2px solid var(--btn-border); border-radius: 999px; background: var(--btn-bg); }
-.theme-chip.active { border-color: var(--accent); background: var(--panel-soft); font-weight: 700; }
+/* Each chip previews its OWN theme's colors, so it's always legible no matter
+   which theme is currently active (fixes black-on-dark contrast). */
+.theme-chip { font-family: var(--font-display); font-size: 1rem; font-weight: 700;
+              padding: 10px 18px; margin: 4px; cursor: pointer;
+              border: 2px solid var(--btn-border); border-radius: 999px; background: var(--btn-bg);
+              color: var(--text); }
+.theme-chip.chip-pirate   { background: #f7ecd7; color: #3a2c1c; border-color: #caa86a; }
+.theme-chip.chip-hightech { background: #16243d; color: #9fdcff; border-color: #34589a; }
+.theme-chip.chip-princess { background: #fff0f8; color: #7a3d72; border-color: #e6b8de; }
+.theme-chip.active { box-shadow: 0 0 0 3px var(--accent); }
 
 /* ---------- practice */
 .practice { max-width: 640px; margin: 0 auto; text-align: center; }
@@ -158,10 +189,21 @@ body {
               margin-top: 14px; box-shadow: 0 4px 18px rgba(20,30,60,.10); }
 .model-svg { width: 100%; max-width: 560px; height: auto; display: block; margin: 0 auto; }
 
-.feedback { margin-top: 12px; font-family: var(--font-display); font-size: 1.25rem;
-            font-weight: bold; min-height: 1.4em; }
-.feedback.good { color: var(--good); }
-.feedback.soft { color: var(--soft-bad); }
+/* Always occupies its space (reserved height) so showing a message never
+   shifts the keypad. Empty = transparent; a result fills in a dark pill with
+   bright theme-colored text, which reads well on light OR dark backgrounds. */
+.feedback {
+  margin-top: 12px; min-height: 3.1rem;
+  display: flex; align-items: center; justify-content: center;
+  padding: 6px 18px; border-radius: 14px;
+  font-family: var(--font-display); font-size: 1.2rem; font-weight: bold;
+  text-align: center; transition: background .12s;
+}
+.feedback.good, .feedback.soft {
+  background: rgba(14, 20, 30, .9);
+}
+.feedback.good { color: var(--good); box-shadow: inset 0 0 0 2px var(--good); }
+.feedback.soft { color: var(--soft-bad); box-shadow: inset 0 0 0 2px var(--soft-bad); }
 
 .numpad { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 16px; }
 .num-btn { font-family: var(--font-display); font-size: 1.5rem; font-weight: bold;
@@ -178,6 +220,20 @@ body {
                   text-align: center; animation: pop .35s ease-out; }
 .celebrate-card small { font-size: .95rem; color: var(--text-soft); font-weight: normal; }
 @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* ---------- instructions modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(20,25,45,.6);
+                 display: flex; align-items: center; justify-content: center;
+                 z-index: 60; padding: 18px; }
+.modal-overlay[hidden] { display: none; }
+.modal-card { background: var(--panel); color: var(--text); border-radius: var(--radius);
+              padding: 26px 30px; max-width: 460px; width: 100%; max-height: 90vh;
+              overflow-y: auto; animation: pop .3s ease-out; text-align: center; }
+.modal-card h2 { font-family: var(--font-display); margin: 0 0 10px; }
+.modal-intro { font-size: 1.05rem; margin: 0 0 16px; }
+.steps { list-style: none; padding: 0; margin: 0 0 20px; text-align: left; }
+.steps li { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+.step-icon { font-size: 1.5rem; line-height: 1.2; flex: none; width: 1.6em; text-align: center; }
 
 /* ---------- visual models */
 .tf-frame { fill: var(--panel-soft); stroke: var(--text); stroke-width: 2.5; }

@@ -83,7 +83,7 @@
     el.op.textContent = q.symbol;
     el.b.textContent = q.b;
     el.answer.textContent = '?';
-    el.feedback.hidden = true;
+    clearFeedback();
     highlight(null);
     updateGoal(q.daily);
 
@@ -134,8 +134,10 @@
 
     if (result.correct) {
       el.answer.classList.add('right');
-      feedback(pick(THEME.cheers) + ' +' + result.points_earned + ' ' + THEME.point_icon, 'good');
-      if (result.mastered_now) feedback('⭐ Fact mastered! ⭐', 'good');
+      playSound(result.goal_just_met ? 'goal' : 'correct');
+      const msg = result.mastered_now ? '⭐ Fact mastered! ⭐'
+        : pick(THEME.cheers) + ' +' + result.points_earned + ' ' + THEME.point_icon;
+      feedback(msg, 'good');
       setTimeout(() => {
         el.answer.classList.remove('right');
         result.goal_just_met ? celebrate() : loadNext();
@@ -143,6 +145,7 @@
     } else {
       el.answer.textContent = result.answer;
       el.answer.classList.add('shown');
+      playSound('wrong');
       renderModel(); // a miss always earns the picture
       feedback(pick(THEME.oops) + '  ' + q.a + ' ' + q.symbol + ' ' + q.b + ' = ' + result.answer, 'soft');
       setTimeout(() => {
@@ -152,10 +155,19 @@
     }
   }
 
+  function playSound(kind) {
+    if (window.MFSound) window.MFSound.play(kind, THEME.key);
+  }
+
+  // The feedback element always reserves its space (see .feedback in app.css),
+  // so showing a message never shifts the keypad. We only swap text + class.
   function feedback(msg, cls) {
     el.feedback.textContent = msg;
     el.feedback.className = 'feedback ' + cls;
-    el.feedback.hidden = false;
+  }
+  function clearFeedback() {
+    el.feedback.textContent = '';
+    el.feedback.className = 'feedback';
   }
 
   function celebrate() {

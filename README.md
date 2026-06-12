@@ -49,10 +49,29 @@ Staff can view any student's report at `/report/<username>/`.
 ## Themes
 
 Pirate, High Tech, and Princess ship now; students switch on their home page.
-Adding a theme = one entry in `drill/themes.py` (names, emoji, phrase pools)
-+ one CSS custom-property file at `static/drill/themes/<key>.css`. Optional
-art drops into `static/drill/themes/<key>/background.webp` (the CSS gradient
-shows wherever art is absent).
+Adding a theme = one entry in `drill/themes.py` (names, emoji, phrase pools,
+instructions text) + one CSS custom-property file at
+`static/drill/themes/<key>.css`. Optional art drops into
+`static/drill/themes/<key>/background.webp` (the CSS gradient shows wherever
+art is absent). Each theme also gets its own **answer sounds** and a
+theme-flavored **how-to-play** intro (coins / energy / jewels).
+
+Sounds are **synthesized** in `static/drill/js/sound.js` with the Web Audio
+API — no audio files, no licensing, works offline, distinct per theme. To use
+recorded SFX instead, add them and call from `sound.js` (the
+`play(kind, theme)` contract is stable). Good CC0 sources if you go that way:
+freesound.org, mixkit.co, kenney.nl.
+
+## Display & accessibility
+
+- **Zoom**: A−/A+ in the top bar scale the whole page (CSS `zoom`), persisted
+  per browser in `localStorage`.
+- **Sound on/off**: the 🔊 button mutes/unmutes, persisted in `localStorage`.
+- **Fonts**: Fredoka (display) + Nunito (body), with Orbitron for the High
+  Tech theme, loaded from Google Fonts with a system fallback stack.
+- **Instructions**: a how-to-play modal auto-shows once on first login
+  (tracked by `Student.seen_instructions`) and is reopenable anytime from the
+  "How to play" button on the home screen.
 
 ## Layout
 

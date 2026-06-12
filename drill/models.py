@@ -39,6 +39,8 @@ class Student(models.Model):
     theme = models.CharField(max_length=32, default='pirate')
     # ~15 min of real answering; see srs.POINTS for how points accrue.
     daily_goal_points = models.PositiveSmallIntegerField(default=150)
+    # the how-to-play modal auto-shows once, on first login
+    seen_instructions = models.BooleanField(default=False)
 
     def __str__(self):
         return self.user.username

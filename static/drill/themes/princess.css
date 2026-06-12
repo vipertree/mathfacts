@@ -14,7 +14,6 @@ body.theme-princess {
   --soft-bad: #cf7a64;
   --btn-bg: #fff5fb;
   --btn-border: #e3bcd9;
-  --font-display: 'Comic Sans MS', 'Chalkboard SE', 'Segoe UI', system-ui, sans-serif;
 }
 
 body.theme-princess .topbar { background: rgba(214, 156, 201, .82); }

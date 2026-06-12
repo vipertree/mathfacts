@@ -132,6 +132,25 @@ class PracticeFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'hightech.css')
 
+    def test_instructions_show_once_on_first_login(self):
+        # first visit: modal auto-shows and the flag is set
+        self.assertFalse(self.student.seen_instructions)
+        r1 = self.client.get(reverse('home'))
+        self.assertTrue(r1.context['show_instructions'])
+        self.assertContains(r1, 'energy cells')  # hightech-flavored intro
+        self.student.refresh_from_db()
+        self.assertTrue(self.student.seen_instructions)
+        # second visit: no auto-show, but the how-to button is still there
+        r2 = self.client.get(reverse('home'))
+        self.assertFalse(r2.context['show_instructions'])
+        self.assertContains(r2, 'How to play')
+
+    def test_instructions_text_varies_by_theme(self):
+        self.client.post(reverse('set_theme'), {'theme': 'princess'})
+        response = self.client.get(reverse('home'))
+        self.assertContains(response, 'jewels')
+        self.assertNotContains(response, 'energy cells')
+
     def test_practice_page_embeds_valid_theme_json(self):
         # regression: theme data must be a JSON *object*, not a double-encoded
         # string (which made THEME.cheers undefined and broke answering).

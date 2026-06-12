@@ -20,6 +20,9 @@ THEMES = {
         'oops': ["Walk it back, matey…", 'Even captains miss a wave.'],
         'goal_met': "Ye plundered today's treasure! 🏆",
         'practice_label': 'Set sail!',
+        'instructions_title': '🏴‍☠️ How to be a Math Pirate',
+        'instructions_intro': ('Answer math facts to fill your treasure chest! '
+                               'Earn {goal} 🪙 gold coins a day to keep your streak alive.'),
     },
     'hightech': {
         'name': 'High Tech',
@@ -33,6 +36,9 @@ THEMES = {
         'oops': ['Recalibrating…', 'Glitch detected — rerouting.'],
         'goal_met': 'Daily mission complete! 🚀',
         'practice_label': 'Launch!',
+        'instructions_title': '🛰️ Mission Briefing',
+        'instructions_intro': ('Solve equations to power up your core! '
+                               'Collect {goal} 🔋 energy cells a day to keep your streak online.'),
     },
     'princess': {
         'name': 'Princess',
@@ -46,6 +52,9 @@ THEMES = {
         'oops': ['Every royal practices…', 'The castle believes in you.'],
         'goal_met': 'The royal quest is complete! 🏰',
         'practice_label': 'Begin the quest!',
+        'instructions_title': '👑 Your Royal Guide',
+        'instructions_intro': ('Solve math facts to fill your crown with sparkle! '
+                               'Collect {goal} 💎 jewels a day to keep your streak shining.'),
     },
 }
 

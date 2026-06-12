@@ -14,7 +14,7 @@ body.theme-hightech {
   --soft-bad: #f08c5c;
   --btn-bg: #1b2c4a;
   --btn-border: #2f4a78;
-  --font-display: 'Consolas', 'Menlo', monospace;
+  --font-display: 'Orbitron', 'Fredoka', system-ui, sans-serif;
 }
 
 body.theme-hightech .topbar { background: rgba(8, 14, 30, .85); }

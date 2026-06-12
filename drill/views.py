@@ -40,13 +40,40 @@ def home(request):
     student = _student(request)
     today = _today(student)
     ctx = _theme_context(student)
+    # Auto-show the how-to-play modal once, on first login.
+    first_time = not student.seen_instructions
+    if first_time:
+        student.seen_instructions = True
+        student.save(update_fields=['seen_instructions'])
     ctx.update({
         'daily': _daily_dict(student, today),
         'streak': _streak(student),
         'mastered_count': student.progress.filter(mastered=True).count(),
         'total_facts': Fact.objects.count(),
+        'show_instructions': first_time,
+        'instructions': _instructions(ctx['theme'], student.daily_goal_points),
     })
     return render(request, 'drill/home.html', ctx)
+
+
+def _instructions(theme, goal):
+    """Theme-flavored how-to-play content. The intro speaks the theme's
+    language (coins / energy / jewels); the steps are shared but name the
+    theme's currency."""
+    points = theme['points_name']
+    return {
+        'title': theme['instructions_title'],
+        'intro': theme['instructions_intro'].format(goal=goal),
+        'steps': [
+            ('🔢', 'Tap any number from 0 to 20 — or type it and press Enter.'),
+            ('👀', 'Pictures like ten-frames and number lines help you see the '
+                   'math. They fade away as you get faster.'),
+            ('⚡', f'Answer quickly to earn the most {points}! Aim to solve every '
+                   'fact in under 5 seconds with no picture.'),
+            ('📅', f'Practice a little every day — the bar at the top fills up as '
+                   f'you collect {points}.'),
+        ],
+    }
 
 
 @login_required
@@ -57,6 +84,7 @@ def practice(request):
     # Pass a dict to json_script (it serializes); do NOT pre-dump to a string
     # or it gets double-encoded and THEME becomes a string in the browser.
     ctx['theme_data'] = {
+        'key': ctx['theme_key'],
         'cheers': ctx['theme']['cheers'],
         'oops': ctx['theme']['oops'],
         'goal_met': ctx['theme']['goal_met'],

@@ -16,7 +16,6 @@ body.theme-pirate {
   --soft-bad: #b56038;
   --btn-bg: #fdf6e6;
   --btn-border: #cdb98e;
-  --font-display: 'Comic Sans MS', 'Chalkboard SE', 'Segoe UI', system-ui, sans-serif;
 }
 
 body.theme-pirate .topbar { background: rgba(28, 42, 56, .78); }
