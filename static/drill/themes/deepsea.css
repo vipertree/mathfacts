@@ -1,0 +1,29 @@
+/* Deep Sea theme — dark: abyssal navy-teal panels, bioluminescent accents.
+ * The second dark option alongside hightech, warmer and softer than it.
+ * Optional art: static/drill/themes/deepsea/background.webp
+ */
+
+body.theme-deepsea {
+  --bg: linear-gradient(180deg, #041e2a 0%, #07303f 55%, #0a4152 100%);
+  /* optional art layered over the gradient; resolves to themes/deepsea/background.webp */
+  background-image: url('deepsea/background.webp'), var(--bg);
+  --panel: #0d2a38;
+  --panel-soft: #143b4d;
+  --text: #d6eef5;           /* firmly light on the dark panels */
+  --text-soft: #86aebe;
+  --accent: #34d6d0;         /* bioluminescent cyan */
+  --accent-2: #ff8f9e;       /* coral */
+  --good: #47d69a;
+  --soft-bad: #f0906f;
+  --btn-bg: #10333f;
+  --btn-border: #245a6d;
+}
+
+body.theme-deepsea .topbar { background: rgba(3, 20, 28, .85); }
+body.theme-deepsea .brand, body.theme-deepsea .topbar a,
+body.theme-deepsea .topbar .linklike { color: #9fe6ea; }
+body.theme-deepsea .card, body.theme-deepsea .question-area,
+body.theme-deepsea .model-area { border: 1px solid #245a6d;
+  box-shadow: 0 0 18px rgba(52, 214, 208, .18); }
+/* the rekenrek's "white" beads need to read as light-on-dark, as in hightech */
+body.theme-deepsea .rk-white { fill: #bfdde5; }

@@ -33,7 +33,15 @@ class ApplyAnswerTests(TestCase):
     def answer(self, correct=True, ms=2000):
         return srs.apply_answer(self.prog, correct, ms, now=self.now)
 
+    def seen_already(self, ms=9000):
+        """Take the fixture past its first exposure. The placement fast-track
+        fires only on a fact's *first* answer, so tests about the ordinary
+        ladder have to start from a fact that has already been met."""
+        self.prog.ema_ms = ms
+        self.prog.save()
+
     def test_fluent_correct_advances_box_and_schedules(self):
+        self.seen_already()
         points, mastered = self.answer(correct=True, ms=2000)
         self.assertEqual(self.prog.box, 1)
         self.assertEqual(self.prog.due_at, self.now + srs.INTERVALS[1])
@@ -64,6 +72,7 @@ class ApplyAnswerTests(TestCase):
         self.assertEqual(self.prog.box, 0)
 
     def test_scaffold_fades_after_three_fluent_corrects(self):
+        self.seen_already()
         self.assertEqual(self.prog.scaffold, FactProgress.SCAFFOLD_FULL)
         for _ in range(3):
             self.answer(correct=True, ms=2000)
@@ -161,18 +170,36 @@ class NextQuestionTests(TestCase):
         self.assertNotEqual(nxt.fact_id, prog.fact_id)
 
     def test_working_set_caps_introductions(self):
-        later = self.now + timedelta(minutes=30)
-        # fill the working set with not-due learning facts
+        # "room" counts facts in rotation, i.e. due inside WORKING_HORIZON — a
+        # rested fact is still in a learning box but must not hold a slot, or
+        # coverage stalls behind whatever the student is stuck on
+        soon = self.now + srs.WORKING_HORIZON - timedelta(minutes=1)
         for _ in range(srs.WORKING_SET_MAX):
             prog = srs.next_question(self.student, now=self.now)
-            prog.due_at = later + timedelta(days=1)
+            prog.box = 0
+            prog.due_at = soon
             prog.save()
         count_before = FactProgress.objects.filter(student=self.student).count()
         self.assertEqual(count_before, srs.WORKING_SET_MAX)
-        # nothing due, working set full -> falls back to practice-ahead, no new fact
+        # working set full of in-rotation facts -> no new fact is introduced
         srs.next_question(self.student, now=self.now)
         self.assertEqual(
             FactProgress.objects.filter(student=self.student).count(), count_before)
+
+    def test_rested_facts_do_not_block_introductions(self):
+        # the regression this guards: a student stuck on a handful of facts met
+        # 17 of 693 facts in 400 questions, because the facts they could not do
+        # held every working-set slot for ever
+        for _ in range(srs.WORKING_SET_MAX):
+            prog = srs.next_question(self.student, now=self.now)
+            prog.box = 0
+            prog.due_at = self.now + srs.LEECH_REST      # rested, not in rotation
+            prog.save()
+        count_before = FactProgress.objects.filter(student=self.student).count()
+        srs.next_question(self.student, now=self.now)
+        self.assertEqual(
+            FactProgress.objects.filter(student=self.student).count(),
+            count_before + 1)
 
     def test_due_review_selected(self):
         prog = srs.next_question(self.student, now=self.now)

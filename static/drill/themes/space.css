@@ -1,0 +1,28 @@
+/* Space Cadet theme — dark: violet-black nebula, magenta and gold.
+ * Deliberately purple/warm where hightech is cyan/cool.
+ * Optional art: static/drill/themes/space/background.webp
+ */
+
+body.theme-space {
+  --bg: linear-gradient(180deg, #100a24 0%, #1c1038 55%, #2a1450 100%);
+  /* optional art layered over the gradient; resolves to themes/space/background.webp */
+  background-image: url('space/background.webp'), var(--bg);
+  --panel: #191036;
+  --panel-soft: #251848;
+  --text: #ece0ff;           /* firmly light on the nebula panels */
+  --text-soft: #a894cc;
+  --accent: #ff4fc3;         /* hot magenta */
+  --accent-2: #ffc84a;       /* star gold */
+  --good: #5ad98f;
+  --soft-bad: #ff9a6b;
+  --btn-bg: #1d1240;
+  --btn-border: #40286e;
+}
+
+body.theme-space .topbar { background: rgba(10, 6, 22, .86); }
+body.theme-space .brand, body.theme-space .topbar a,
+body.theme-space .topbar .linklike { color: #f0b8ff; }
+body.theme-space .card, body.theme-space .question-area,
+body.theme-space .model-area { border: 1px solid #40286e;
+  box-shadow: 0 0 20px rgba(255, 79, 195, .18); }
+body.theme-space .rk-white { fill: #cfc2ea; }

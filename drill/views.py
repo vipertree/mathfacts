@@ -13,8 +13,12 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
 from . import srs
-from .models import Attempt, DailyProgress, Fact, FactProgress, Student
-from .strategies import STAGE_LABELS, STRATEGY_MODEL
+from .models import (DEFAULT_OPERATIONS, OP_NAMES, OP_ORDER, OP_SYMBOLS,
+                     Attempt, DailyProgress, Fact, FactProgress, Student,
+                     clean_operations)
+from .strategies import (STAGE_LABELS, STAGES_BY_OP, STRATEGY_MODEL,
+                         answer_max, grid_cell, grid_label, grid_spec,
+                         keypad_for)
 from .themes import THEMES, get_theme
 
 
@@ -38,6 +42,7 @@ def _theme_context(student):
 @login_required
 def home(request):
     student = _student(request)
+    ops = student.enabled_operations
     today = _today(student)
     ctx = _theme_context(student)
     # Auto-show the how-to-play modal once, on first login.
@@ -48,27 +53,39 @@ def home(request):
     ctx.update({
         'daily': _daily_dict(student, today),
         'streak': _streak(student),
-        'mastered_count': student.progress.filter(mastered=True).count(),
-        'total_facts': Fact.objects.count(),
+        'mastered_count': student.progress.filter(
+            mastered=True, fact__operation__in=ops).count(),
+        'total_facts': Fact.objects.filter(operation__in=ops).count(),
+        'operations': [OP_NAMES[op] for op in ops],
         'show_instructions': first_time,
-        'instructions': _instructions(ctx['theme'], student.daily_goal_points),
+        'instructions': _instructions(ctx['theme'], student.daily_goal_points, ops),
         'custom_count': len(student.custom_selection or []),
     })
     return render(request, 'drill/home.html', ctx)
 
 
-def _instructions(theme, goal):
+def _instructions(theme, goal, operations):
     """Theme-flavored how-to-play content. The intro speaks the theme's
     language (coins / energy / jewels); the steps are shared but name the
-    theme's currency."""
+    theme's currency and the operations this student actually practices."""
     points = theme['points_name']
+    pads = {keypad_for(op) for op in operations}
+    widest = max(answer_max(op) for op in operations)
+    if pads == {'direct'}:
+        keypad = f'Tap any number from 0 to {widest}, or type it and press Enter.'
+    elif pads == {'digits'}:
+        keypad = ('Tap the digits to build your answer, then tap ⏎ (or press '
+                  'Enter). ⌫ rubs out a digit.')
+    else:
+        keypad = ('For + and −, tap any number from 0 to 20. For × and ÷, tap '
+                  'the digits to build your answer and then tap ⏎.')
     return {
         'title': theme['instructions_title'],
         'intro': theme['instructions_intro'].format(goal=goal),
         'steps': [
-            ('🔢', 'Tap any number from 0 to 20, or type it and press Enter.'),
-            ('👀', 'Pictures such as ten-frames and number lines help you see the '
-                   'math. They fade away as you get faster.'),
+            ('🔢', keypad),
+            ('👀', 'Pictures such as ten-frames, equal groups and arrays help you '
+                   'see the math. They fade away as you get faster.'),
             ('⚡', f'Answer quickly to earn the most {points}! Aim to solve every '
                    'fact in under 5 seconds with no picture.'),
             ('📅', f'Practice a little every day, and the bar at the top fills up '
@@ -126,7 +143,9 @@ def select_facts(request):
         ids = [int(x) for x in request.POST.getlist('fact_ids')]
     except (TypeError, ValueError):
         return HttpResponseBadRequest('bad selection')
-    valid = list(Fact.objects.filter(id__in=ids).values_list('id', flat=True))
+    valid = list(Fact.objects.filter(
+        id__in=ids, operation__in=student.enabled_operations
+    ).values_list('id', flat=True))
     student.custom_selection = valid
     student.save(update_fields=['custom_selection'])
     if not valid:
@@ -169,9 +188,10 @@ def set_theme(request):
 
 @staff_member_required
 def manage(request):
-    """Teacher dashboard: add students, reset their passwords, jump to reports.
-    Students are created here or via `manage.py create_student`, never by
-    self-signup, and never with an email."""
+    """Teacher dashboard: add students, choose which of the four operations
+    each one practices, reset their passwords, jump to reports. Students are
+    created here or via `manage.py create_student`, never by self-signup, and
+    never with an email."""
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'add_student':
@@ -179,17 +199,42 @@ def manage(request):
             password = request.POST.get('password', '')
             theme = request.POST.get('theme', 'pirate')
             goal = request.POST.get('goal') or 150
+            operations = clean_operations(request.POST.getlist('operations'))
             if not username or not password:
                 messages.error(request, 'Username and password are both required.')
             elif User.objects.filter(username=username).exists():
                 messages.error(request, f'A user named “{username}” already exists.')
             elif theme not in THEMES:
                 messages.error(request, 'Unknown theme.')
+            elif not operations:
+                messages.error(request, 'Pick at least one operation to practice.')
             else:
                 user = User.objects.create_user(username=username, password=password)
                 Student.objects.create(
-                    user=user, theme=theme, daily_goal_points=int(goal))
-                messages.success(request, f'Student “{username}” added.')
+                    user=user, theme=theme, daily_goal_points=int(goal),
+                    operations=operations)
+                messages.success(
+                    request,
+                    f'Student “{username}” added ({_op_summary(operations)}).')
+        elif action == 'set_operations':
+            target = get_object_or_404(Student, pk=request.POST.get('student_id'))
+            operations = clean_operations(request.POST.getlist('operations'))
+            if not operations:
+                # Zero operations would leave the student with nothing to do.
+                messages.error(
+                    request,
+                    f'“{target.user.username}” needs at least one operation — '
+                    'nothing changed.')
+            else:
+                target.operations = operations
+                target.save(update_fields=['operations'])
+                # Drop any hand-picked facts that just left the assignment, so
+                # "practice my set" can't resurrect them.
+                _prune_selection(target)
+                messages.success(
+                    request,
+                    f'“{target.user.username}” now practices '
+                    f'{_op_summary(operations)}.')
         elif action == 'reset_password':
             target = get_object_or_404(Student, pk=request.POST.get('student_id'))
             new_password = request.POST.get('password', '')
@@ -205,13 +250,66 @@ def manage(request):
     students = (Student.objects.select_related('user')
                 .annotate(mastered=Count('progress', filter=Q(progress__mastered=True)))
                 .order_by('user__username'))
+    # Per-student: which operations are on, and how many of *their* facts are
+    # mastered (the annotation above counts every operation, including ones
+    # they no longer practice).
+    totals = dict(Fact.objects.values_list('operation').annotate(n=Count('id')))
+    rows = []
+    for st in students:
+        ops = st.enabled_operations
+        rows.append({
+            'student': st,
+            'checks': [{'code': op, 'name': OP_NAMES[op],
+                        'symbol': OP_SYMBOLS[op], 'on': op in ops}
+                       for op in OP_ORDER],
+            'mastered': st.progress.filter(
+                mastered=True, fact__operation__in=ops).count(),
+            'total': sum(totals.get(op, 0) for op in ops),
+            'working_on': _working_on(st),
+        })
     ctx = _theme_context(_student(request))
     ctx.update({
-        'students': students,
+        'rows': rows,
+        'op_choices': [{'code': op, 'name': OP_NAMES[op], 'symbol': OP_SYMBOLS[op],
+                        'default': op in DEFAULT_OPERATIONS}
+                       for op in OP_ORDER],
+        'op_totals': [{'name': OP_NAMES[op], 'symbol': OP_SYMBOLS[op],
+                       'count': totals.get(op, 0)} for op in OP_ORDER],
         'total_facts': Fact.objects.count(),
         'is_manage': True,
     })
     return render(request, 'drill/manage.html', ctx)
+
+
+def _op_summary(operations):
+    return ', '.join(OP_NAMES[op].lower() for op in operations)
+
+
+def _working_on(student):
+    """The batch the scheduler has placed this student at, for the teacher to
+    sanity-check. `reach` can point at a batch outside the student's assigned
+    operations (it is clamped at introduction time, not stored clamped), so
+    report the nearest batch that is actually theirs."""
+    mine = sorted(stage for op in student.enabled_operations
+                  for stage in STAGES_BY_OP[op])
+    if not mine:
+        return ''
+    at_or_below = [s for s in mine if s <= student.reach]
+    stage = at_or_below[-1] if at_or_below else mine[0]
+    return STAGE_LABELS[stage]
+
+
+def _prune_selection(student):
+    """Keep only self-selected facts that are still in the student's assigned
+    operations."""
+    if not student.custom_selection:
+        return
+    kept = list(Fact.objects.filter(
+        id__in=student.custom_selection,
+        operation__in=student.enabled_operations).values_list('id', flat=True))
+    if len(kept) != len(student.custom_selection):
+        student.custom_selection = kept
+        student.save(update_fields=['custom_selection'])
 
 
 # ---------------------------------------------------------------- API
@@ -223,11 +321,20 @@ def api_next(request):
     now = timezone.now()
     custom = request.session.get('practice_mode') == 'custom'
     exclude = request.session.get('last_fact_id')
-    if custom:
-        prog = srs.next_custom(student, student.custom_selection or [],
-                               exclude_fact_id=exclude, now=now)
-    else:
-        prog = srs.next_question(student, exclude_fact_id=exclude, now=now)
+    try:
+        if custom:
+            prog = srs.next_custom(student, student.custom_selection or [],
+                                   exclude_fact_id=exclude, now=now)
+        else:
+            prog = srs.next_question(student, exclude_fact_id=exclude, now=now)
+    except Fact.DoesNotExist:
+        # No facts in the assigned operations (or an unseeded table). Tell the
+        # client to stop asking instead of letting it spin on a 500.
+        return JsonResponse({
+            'empty': True,
+            'message': 'Nothing to practice right now — ask your teacher '
+                       'which math to work on.',
+        })
     request.session['served'] = {'fact_id': prog.fact_id, 'at': now.timestamp()}
     fact = prog.fact
     return JsonResponse({
@@ -240,6 +347,14 @@ def api_next(request):
         'model': STRATEGY_MODEL[fact.strategy],
         'strategy': fact.strategy,
         'pace_ms': srs.FLUENT_MS[prog.scaffold],  # the real fluency window
+        'answer_max': answer_max(fact.operation),
+        'keypad': keypad_for(fact.operation),      # 'direct' or 'digits'
+        # How many digits the answer has, so a typed answer submits the moment
+        # it is complete: "5" for 5 x 1 is done, while 7 x 8 waits for the
+        # second digit. This gives nothing away — the client is already holding
+        # both operands and can do the arithmetic itself; the server still
+        # scores and times the answer, which is what actually has to be trusted.
+        'answer_digits': len(str(prog.fact.answer)),
         'custom': custom,
         'daily': _daily_dict(student, _today(student)),
     })
@@ -364,15 +479,24 @@ def _status(prog):
 
 
 def _build_report(student, can_select=False):
+    """The 4-level report, one grid per operation the student is assigned.
+
+    Each operation brings its own axes (see strategies.GRID_SPECS): + - and x
+    are the familiar row-by-column table, while division is laid out as
+    divisor x answer with the dividend in the cell, because a dividend axis
+    would run to 100.
+    """
+    ops = student.enabled_operations
     by_fact = {p.fact_id: p for p in student.progress.all()}
-    facts = list(Fact.objects.all())
+    facts = list(Fact.objects.filter(operation__in=ops))
     selected = set(student.custom_selection or [])
-    grids = {}
+    grids = []
     counts = {key: 0 for key in STATUS_LABELS}
     # per-batch breakdown (teaching stage -> per-status counts)
     batches = {s: {'label': label, 'counts': {k: 0 for k in STATUS_LABELS}, 'total': 0}
                for s, label in STAGE_LABELS.items()}
-    for op in ('add', 'sub'):
+    for op in ops:
+        spec = grid_spec(op)
         cells = {}
         for f in facts:
             if f.operation != op:
@@ -381,25 +505,32 @@ def _build_report(student, can_select=False):
             counts[status] += 1
             batches[f.stage]['counts'][status] += 1
             batches[f.stage]['total'] += 1
-            cells[(f.a, f.b)] = {
-                'id': f.id, 'answer': f.answer, 'status': status,
+            cells[grid_cell(op, f.a, f.b, f.answer)] = {
+                'id': f.id, 'label': grid_label(op, f.a, f.b, f.answer),
+                'status': status,
                 'selected': f.id in selected,
                 'title': f'{f} · {STATUS_LABELS[status]}',
             }
         rows = []
-        for a in range(21):
-            row = [cells.get((a, b)) for b in range(21)]
+        for r in spec['rows']:
+            row = [cells.get((r, c)) for c in spec['cols']]
             if any(row):
-                rows.append({'a': a, 'cells': row})
-        grids[op] = rows
+                rows.append({'head': r, 'cells': row})
+        grids.append({
+            'op': op,
+            'title': f'{OP_NAMES[op]} ({OP_SYMBOLS[op]})',
+            'symbol': OP_SYMBOLS[op],
+            'cols': spec['cols'],
+            'rows': rows,
+            'note': spec['note'],
+        })
     total = sum(counts.values())
     recent = (Attempt.objects
-              .filter(student=student, correct=True)
+              .filter(student=student, correct=True, fact__operation__in=ops)
               .order_by('-created_at')[:50]
               .aggregate(avg=Avg('response_ms')))
     return {
         'grids': grids,
-        'cols': list(range(21)),
         'counts': counts,
         'legend': [{'key': k, 'label': STATUS_LABELS[k], 'count': counts[k]}
                    for k in STATUS_ORDER],
@@ -411,4 +542,5 @@ def _build_report(student, can_select=False):
         'avg_recent_s': round(recent['avg'] / 1000, 1) if recent['avg'] else None,
         'can_select': can_select,
         'selected_count': len(selected),
+        'working_on': _working_on(student),
     }

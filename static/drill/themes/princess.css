@@ -9,7 +9,9 @@ body.theme-princess {
   --text: #5a3354;
   --text-soft: #9a6f92;
   --accent: #b75db1;         /* royal orchid */
-  --accent-2: #f2b04e;       /* crown gold */
+  --accent-2: #eda63c;       /* crown gold — deepened a hair so the ×/÷
+                                group dots and hop arcs clear 3:1 inside a
+                                ring (at #f2b04e they measured 2.98) */
   --good: #4aa56f;
   --soft-bad: #cf7a64;
   --btn-bg: #fff5fb;

@@ -23,6 +23,12 @@
       <strong>{% if avg_recent_s %}{{ avg_recent_s }}s{% else %}?{% endif %}</strong>
       <span>recent speed (goal: under 5s)</span>
     </div>
+    {% if working_on %}
+    <div class="stat stat-wide">
+      <strong>{{ working_on }}</strong>
+      <span>working on now</span>
+    </div>
+    {% endif %}
   </div>
 
   {% if can_select %}
@@ -51,21 +57,22 @@
     {% if can_select %}<span class="legend-item legend-hint">Tap a cell to add it to your practice set.</span>{% endif %}
   </div>
 
-  {% for op, rows in grids.items %}
+  {% for grid in grids %}
   <div class="card grid-card">
-    <h2>{% if op == 'add' %}Addition (+){% else %}Subtraction (−){% endif %}</h2>
+    <h2>{{ grid.title }}</h2>
+    {% if grid.note %}<p class="hint">{{ grid.note }}</p>{% endif %}
     <div class="fact-grid-scroll">
       <table class="fact-grid {% if can_select %}selectable{% endif %}">
         <tr>
-          <th>{% if op == 'add' %}+{% else %}−{% endif %}</th>
-          {% for c in cols %}<th>{{ c }}</th>{% endfor %}
+          <th>{{ grid.symbol }}</th>
+          {% for c in grid.cols %}<th>{{ c }}</th>{% endfor %}
         </tr>
-        {% for row in rows %}
+        {% for row in grid.rows %}
         <tr>
-          <th>{{ row.a }}</th>
+          <th>{{ row.head }}</th>
           {% for cell in row.cells %}
           <td>{% if cell %}<span class="cell {{ cell.status }}{% if cell.selected %} selected{% endif %}"
-                  title="{{ cell.title }}" data-fact-id="{{ cell.id }}">{{ cell.answer }}</span>{% endif %}</td>
+                  title="{{ cell.title }}" data-fact-id="{{ cell.id }}">{{ cell.label }}</span>{% endif %}</td>
           {% endfor %}
         </tr>
         {% endfor %}

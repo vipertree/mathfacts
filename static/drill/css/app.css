@@ -97,11 +97,30 @@ body {
 .student-table th { text-align: left; font-size: .8rem; color: var(--text-soft);
   border-bottom: 2px solid var(--btn-border); padding: 6px 8px; }
 .student-table td { padding: 8px; border-bottom: 1px solid var(--panel-soft); vertical-align: middle; }
-.student-table a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.student-table a { color: var(--accent); font-weight: 600; text-decoration: none;
+  white-space: nowrap; }
+.working-on { font-size: .85rem; color: var(--text-soft); max-width: 15ch; }
+.stat-wide strong { font-size: 1rem !important; line-height: 1.25; }
 .badge { font-size: .7rem; background: var(--accent); color: #fff; padding: 1px 7px;
   border-radius: 999px; vertical-align: middle; }
 .reset-form { display: flex; gap: 6px; }
 .reset-form input { width: 130px; }
+
+/* which operations a student practices: a checkbox per operation, on the
+   add-student form (with names) and once per row in the table (symbols only,
+   so four of them fit in a cell) */
+.op-checks { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.op-check { display: inline-flex; align-items: center; gap: 5px; font-size: .9rem;
+  font-weight: 600; color: var(--text); cursor: pointer; white-space: nowrap; }
+.op-check input { width: 17px; height: 17px; accent-color: var(--accent);
+  cursor: pointer; margin: 0; }
+.op-sym { font-family: var(--font-display); font-size: 1.05rem; font-weight: 800;
+  min-width: 1ch; text-align: center; }
+.add-student .field-ops label { margin-bottom: 2px; }
+/* one row per student: the four boxes and Save stay on a single line */
+.ops-form { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+.op-checks-tight { gap: 2px 9px; flex-wrap: nowrap; }
+.op-checks-tight .op-check { gap: 3px; }
 .linklike-btn { background: var(--accent); color: #fff; border: none; border-radius: 8px;
   padding: 8px 12px; font-weight: 700; cursor: pointer; }
 
@@ -158,6 +177,11 @@ body {
 .theme-chip.chip-pirate   { background: #f7ecd7; color: #3a2c1c; border-color: #caa86a; }
 .theme-chip.chip-hightech { background: #16243d; color: #9fdcff; border-color: #34589a; }
 .theme-chip.chip-princess { background: #fff0f8; color: #7a3d72; border-color: #e6b8de; }
+.theme-chip.chip-dinosaur { background: #f0e8cf; color: #2a3320; border-color: #a89355; }
+.theme-chip.chip-deepsea  { background: #0d2a38; color: #9fe6ea; border-color: #2b6b80; }
+.theme-chip.chip-space    { background: #191036; color: #f5b9ff; border-color: #543391; }
+.theme-chip.chip-bakery   { background: #fff6e8; color: #8f2246; border-color: #e6c39d; }
+.theme-chip.chip-jungle   { background: #f0e8cd; color: #1d5b2c; border-color: #9b8a58; }
 .theme-chip.active { box-shadow: 0 0 0 3px var(--accent); }
 
 /* ---------- practice */
@@ -188,7 +212,11 @@ body {
 
 .model-area { background: var(--panel); border-radius: var(--radius); padding: 12px;
               margin-top: 14px; box-shadow: 0 4px 18px rgba(20,30,60,.10); }
-.model-svg { width: 100%; max-width: 560px; height: auto; display: block; margin: 0 auto; }
+/* Landscape models (ten-frame, number lines) fill the width; the tall ones
+   (a ten-row array) must not scale to their aspect ratio or they push the
+   keypad off screen — max-height clamps them and the SVG centres itself. */
+.model-svg { width: 100%; max-width: 560px; height: auto; display: block; margin: 0 auto;
+             max-height: 42vh; }
 
 /* Always occupies its space (reserved height) so showing a message never
    shifts the keypad. Empty = transparent; a result fills in a dark pill with
@@ -207,6 +235,12 @@ body {
 .feedback.soft { color: var(--soft-bad); box-shadow: inset 0 0 0 2px var(--soft-bad); }
 
 .numpad { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 16px; }
+/* digit pad: used when the answer range is too wide for a button per number
+   (multiplication to 100). Three columns of digits, ⌫ and Enter on the end. */
+.numpad.digits { grid-template-columns: repeat(3, 1fr); max-width: 320px;
+                 margin-left: auto; margin-right: auto; }
+.numpad.digits .num-btn.wide { grid-column: span 1; }
+.num-btn.act { font-family: var(--font-body); font-size: 1.05rem; }
 .num-btn { font-family: var(--font-display); font-size: 1.5rem; font-weight: bold;
            padding: 14px 0; border-radius: 12px; cursor: pointer;
            background: var(--btn-bg); border: 2px solid var(--btn-border);
@@ -273,6 +307,58 @@ body {
            font-family: var(--font-display); }
 .bar-q, .bar-q-label { fill: var(--text); font-size: 19px; font-weight: bold;
                        text-anchor: middle; font-family: var(--font-display); }
+
+/* equal groups (×, ÷): count the groups, count what's in one */
+/* The marks a student has to *count* (group dots, hop arcs) are mixed toward
+   --text rather than using a raw accent: the accents are mid-tone and wash
+   out on the light panels, while --text is the one colour every theme
+   guarantees will contrast with --panel, so the same mix stays legible on a
+   cream, a pink and a near-black panel alike.
+   These mixes are written inline, NOT hoisted into a custom property on
+   :root — a custom property's var()s are substituted on the element that
+   declares it, and themes set the accents on `body`, so a :root token would
+   resolve against the neutral defaults and paint every theme the same. */
+.gp-ring { fill: var(--panel-soft); stroke: color-mix(in srgb, var(--accent) 72%, var(--text));
+           stroke-width: 2.5; }
+.gp-ring.gp-empty { stroke-dasharray: 5 4; }
+.gp-dot { fill: color-mix(in srgb, var(--accent-2) 60%, var(--text));
+           stroke: color-mix(in srgb, var(--text) 35%, transparent); stroke-width: 1; }
+.gp-per { fill: var(--text); font-size: 15px; font-weight: bold; text-anchor: middle;
+          font-family: var(--font-display); }
+.gp-caption, .gp-none { fill: var(--text-soft); font-size: 14px; text-anchor: middle;
+                        font-family: var(--font-body); }
+
+/* array / area model (×, ÷) */
+.ar-cell { stroke: var(--text); stroke-width: 1.5; }
+.ar-cell-a { fill: color-mix(in srgb, var(--accent) 70%, white); }
+.ar-cell-b { fill: color-mix(in srgb, var(--accent-2) 80%, white); }
+.ar-cell-extra { fill: var(--panel-soft); stroke-dasharray: 3 3; }
+.ar-strike { stroke: var(--soft-bad); stroke-width: 3.5; stroke-linecap: round; }
+.ar-take { fill: var(--soft-bad); font-size: 16px; font-weight: bold; text-anchor: middle;
+           font-family: var(--font-display); }
+.ar-take.ar-take-row { text-anchor: start; }   /* clear of the strike line */
+.ar-side { fill: var(--text); font-size: 18px; font-weight: bold; text-anchor: middle;
+           font-family: var(--font-display); }
+.ar-side.ar-unknown { fill: var(--accent); font-size: 21px; }
+.ar-total { fill: var(--text); font-size: 19px; font-weight: bold; text-anchor: start;
+            font-family: var(--font-display); }
+.ar-part { fill: var(--text-soft); font-size: 14px; text-anchor: middle;
+           font-family: var(--font-display); }
+.ar-part.ar-part-left { text-anchor: start; }
+
+/* skip-counting line (×5, ×10, ÷5, ÷10) */
+.sl-line { stroke: var(--text); stroke-width: 3; stroke-linecap: round; }
+.sl-tick { stroke: var(--text-soft); stroke-width: 2; }
+.sl-num { fill: var(--text-soft); font-size: 13px; text-anchor: middle;
+          font-family: var(--font-body); }
+.sl-hop { fill: none; stroke: color-mix(in srgb, var(--accent-2) 60%, var(--text));
+           stroke-width: 3.5; stroke-linecap: round; }
+.sl-hop-label { fill: var(--text); font-size: 13px; font-weight: bold; text-anchor: middle;
+                font-family: var(--font-display); }
+.sl-caption { fill: var(--text-soft); font-size: 14px; text-anchor: middle;
+              font-family: var(--font-body); }
+.sl-ask { fill: var(--accent); font-size: 17px; font-weight: bold; text-anchor: middle;
+          font-family: var(--font-display); }
 
 /* ---------- progress page */
 .progress-page h1 { font-family: var(--font-display); }

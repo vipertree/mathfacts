@@ -1,0 +1,27 @@
+/* Jungle Explorer theme — light: a parchment-map panel under canopy greens.
+ * Kept distinct from dinosaur by going pure forest green + toucan orange
+ * where that one is mossy teal + amber.
+ * Optional art: static/drill/themes/jungle/background.webp
+ */
+
+body.theme-jungle {
+  --bg: linear-gradient(165deg, #17381f 0%, #285c30 50%, #3d8b4c 100%);
+  /* optional art layered over the gradient; resolves to themes/jungle/background.webp */
+  background-image: url('jungle/background.webp'), var(--bg);
+  --panel: #f5ecd6;          /* parchment map */
+  --panel-soft: #e7d9b6;
+  --text: #2b3a22;           /* dark leaf, firmly dark on the parchment */
+  --text-soft: #5d6b4a;
+  --accent: #1d6b32;         /* deep leaf */
+  --accent-2: #d9661a;       /* toucan orange */
+  --good: #3f8f4a;
+  --soft-bad: #c0522e;
+  --btn-bg: #fbf5e6;
+  --btn-border: #c8b68d;
+}
+
+body.theme-jungle .topbar { background: rgba(20, 48, 26, .82); }
+body.theme-jungle .brand, body.theme-jungle .topbar a,
+body.theme-jungle .topbar .linklike { color: #e6dcbb; }
+body.theme-jungle .card, body.theme-jungle .question-area,
+body.theme-jungle .model-area { border: 3px solid #a8935c; }

@@ -21,48 +21,90 @@
   };
 
   let q = null, typed = '', locked = true, hintTimer = null, spentTimer = null;
+  let answerMax = 20, answerDigits = 0;
 
-  // ---- numpad: every answer 0-20 is one tap away
-  const buttons = [];
-  for (let n = 0; n <= 20; n++) {
+  // ---- keypad. Two shapes; the server names which one per question
+  // (strategies.KEYPAD), because it is a property of the operation:
+  //  * 'direct' (+ and −): a button per number 0-20, so every answer is one
+  //    tap and tapping submits straight away.
+  //  * 'digits' (× and ÷): a 0-9 pad with ⌫ and ⏎. Multiplication answers run
+  //    to 100 — 101 buttons would be a wall of numbers — and division uses the
+  //    same pad so the two feel identical to type.
+  // `buttons[n]` only exists on the direct pad.
+  const DIGITS = ['1','2','3','4','5','6','7','8','9'];
+  let buttons = [], padKind = null, padMax = null;
+
+  function padButton(text, cls, onTap) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'num-btn';
-    b.textContent = n;
-    b.addEventListener('click', () => { if (!locked) submit(n); });
+    b.className = 'num-btn' + (cls ? ' ' + cls : '');
+    b.textContent = text;
+    b.addEventListener('click', () => { if (!locked) onTap(); });
     el.numpad.appendChild(b);
-    buttons.push(b);
+    return b;
   }
 
-  // ---- keyboard: digits + Enter/Backspace; auto-submit when the typed
-  // string can't be the start of any other valid answer (e.g. "13", "0", "9")
+  function buildPad(kind, max) {
+    if (kind === padKind && max === padMax) return;   // already the right pad
+    padKind = kind; padMax = max;
+    el.numpad.innerHTML = '';
+    el.numpad.classList.toggle('digits', kind === 'digits');
+    buttons = [];
+    if (kind === 'direct') {
+      for (let n = 0; n <= max; n++) {
+        buttons[n] = padButton(n, '', () => submit(n));
+      }
+    } else {
+      DIGITS.forEach(d => padButton(d, '', () => pushDigit(d)));
+      padButton('⌫', 'act', backspace);
+      padButton('0', '', () => pushDigit('0'));
+      padButton('⏎', 'act', () => { if (typed !== '') submit(parseInt(typed, 10)); });
+    }
+  }
+
+  // Add a digit to the typed answer and submit as soon as it is complete.
+  // Complete means either:
+  //  * it is as long as the answer (answerDigits) — so "5" for 5 x 1 fires
+  //    straight away instead of hanging on for a second digit that would only
+  //    make 50-59, or
+  //  * no longer string could be a valid answer at all ("13" with a max of
+  //    20, anything over 10 with a max of 100).
+  // Either way a partial answer is never guessed at, and ⏎ always works.
+  function pushDigit(d) {
+    const candidate = typed + d;
+    if (parseInt(candidate, 10) > answerMax) return;
+    if (candidate.length > 1 && candidate[0] === '0') return;   // no "07"
+    typed = candidate;
+    el.answer.textContent = typed;
+    highlight(parseInt(typed, 10));
+    const complete = answerDigits > 0 && typed.length >= answerDigits;
+    const extendable = ['0'].concat(DIGITS).some(next => {
+      const s = typed + next, v = parseInt(s, 10);
+      return v <= answerMax && String(v) === s;
+    });
+    if (complete || !extendable) submit(parseInt(typed, 10));
+  }
+
+  function backspace() {
+    typed = typed.slice(0, -1);
+    el.answer.textContent = typed || '?';
+    highlight(typed === '' ? null : parseInt(typed, 10));
+  }
+
+  // ---- keyboard: digits + Enter/Backspace, same rules as the pad
   document.addEventListener('keydown', (e) => {
     if (locked) return;
     if (e.key >= '0' && e.key <= '9') {
-      const candidate = typed + e.key;
-      if (parseInt(candidate, 10) <= 20) {
-        typed = candidate;
-        el.answer.textContent = typed;
-        highlight(parseInt(typed, 10));
-        // can another digit still make a different valid answer? ("1" -> 10..19
-        // possible, wait; "13"/"0"/"9" -> nothing longer is valid, submit now)
-        const extendable = ['0','1','2','3','4','5','6','7','8','9'].some(d => {
-          const s = typed + d, v = parseInt(s, 10);
-          return v <= 20 && String(v) === s;
-        });
-        if (!extendable) submit(parseInt(typed, 10));
-      }
+      pushDigit(e.key);
     } else if (e.key === 'Enter' && typed !== '') {
       submit(parseInt(typed, 10));
     } else if (e.key === 'Backspace') {
-      typed = typed.slice(0, -1);
-      el.answer.textContent = typed || '?';
-      highlight(typed === '' ? null : parseInt(typed, 10));
+      backspace();
     }
   });
 
   function highlight(n) {
-    buttons.forEach((b, i) => b.classList.toggle('typed', i === n));
+    buttons.forEach((b, i) => { if (b) b.classList.toggle('typed', i === n); });
   }
 
   function getCookie(name) {
@@ -77,8 +119,12 @@
   }
 
   function showQuestion(data) {
+    if (data.empty) { showEmpty(data.message); return; }
     q = data; typed = ''; locked = false;
     clearTimeout(hintTimer);
+    answerMax = data.answer_max || 20;
+    answerDigits = data.answer_digits || 0;
+    buildPad(data.keypad === 'digits' ? 'digits' : 'direct', answerMax);
     el.a.textContent = q.a;
     el.op.textContent = q.symbol;
     el.b.textContent = q.b;
@@ -154,6 +200,20 @@
         result.goal_just_met ? celebrate() : loadNext();
       }, 3200);
     }
+  }
+
+  // Nothing to practice (a student with no operations assigned, or an unseeded
+  // fact table). Say so and stop, rather than spinning on loadNext().
+  function showEmpty(message) {
+    locked = true;
+    q = null;
+    clearTimeout(hintTimer);
+    clearTimeout(spentTimer);
+    el.numpad.innerHTML = '';
+    el.model.hidden = true;
+    el.a.textContent = ''; el.op.textContent = ''; el.b.textContent = '';
+    el.answer.textContent = '';
+    feedback(message || 'Nothing to practice yet — ask your teacher.', 'soft');
   }
 
   function playSound(kind) {

@@ -23,6 +23,7 @@
     <div class="home-stats">
       <div><strong>{{ streak }}</strong> day streak 🔥</div>
       <div><strong>{{ mastered_count }}</strong> / {{ total_facts }} facts mastered</div>
+      <div>{{ operations|join:" · " }}</div>
     </div>
 
     <button type="button" class="btn-secondary" id="howto-btn">❔ How to play</button>

@@ -1,24 +1,41 @@
 from django.conf import settings
 from django.db import models
 
-OP_SYMBOLS = {'add': '+', 'sub': '−'}
+from .strategies import OPERATIONS as ALL_OPERATIONS
+
+OP_SYMBOLS = {'add': '+', 'sub': '−', 'mul': '×', 'div': '÷'}
+OP_NAMES = {'add': 'Addition', 'sub': 'Subtraction',
+            'mul': 'Multiplication', 'div': 'Division'}
+# canonical display/teaching order for the four operations
+OP_ORDER = list(ALL_OPERATIONS)
+
+DEFAULT_OPERATIONS = ['add', 'sub']
+
+
+def default_operations():
+    """Callable (not a literal) so migrations serialize it and every Student
+    gets its own list."""
+    return list(DEFAULT_OPERATIONS)
+
+
+def clean_operations(values):
+    """Keep only real operation codes, in canonical order, without
+    duplicates. Returns [] if nothing valid was given."""
+    given = set(values or [])
+    return [op for op in OP_ORDER if op in given]
 
 
 class Fact(models.Model):
     """A single math fact (e.g. 9 + 4 = 13), seeded by `seed_facts`."""
 
-    OPERATIONS = [
-        ('add', 'Addition'),
-        ('sub', 'Subtraction'),
-        # future: ('mul', 'Multiplication'), ('div', 'Division')
-    ]
+    OPERATIONS = [(op, OP_NAMES[op]) for op in OP_ORDER]
 
     operation = models.CharField(max_length=3, choices=OPERATIONS)
     a = models.PositiveSmallIntegerField()
     b = models.PositiveSmallIntegerField()
     answer = models.PositiveSmallIntegerField()
     strategy = models.CharField(max_length=32)
-    stage = models.PositiveSmallIntegerField(db_index=True)  # teaching batch 1-8
+    stage = models.PositiveSmallIntegerField(db_index=True)  # teaching batch 1-20
     intro_order = models.PositiveSmallIntegerField(default=0, db_index=True)  # SRS introduces in this order
 
     class Meta:
@@ -38,12 +55,39 @@ class Fact(models.Model):
 class Student(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     theme = models.CharField(max_length=32, default='pirate')
+    # which of the four operations this student practices, set by a teacher on
+    # the "Manage students" page. Facts outside these are never served, and the
+    # progress report hides them — but their FactProgress rows are kept, so
+    # turning an operation back on resumes exactly where the student left off.
+    operations = models.JSONField(default=default_operations, blank=True)
     # ~15 min of real answering; see srs.POINTS for how points accrue.
     daily_goal_points = models.PositiveSmallIntegerField(default=150)
     # the how-to-play modal auto-shows once, on first login
     seen_instructions = models.BooleanField(default=False)
     # fact ids the student last chose for self-selected ("just these") practice
     custom_selection = models.JSONField(default=list, blank=True)
+    # Which teaching batch new facts are currently drawn from — the scheduler's
+    # running estimate of where this student actually is, not a record of what
+    # they have been taught. It climbs whenever a new fact turns out to be
+    # already known and drops when one is missed, so a student who arrives
+    # already fluent at "n + 1" is not walked through every batch. See
+    # srs._next_new_fact / srs.apply_answer.
+    reach = models.PositiveSmallIntegerField(default=1)
+    # A short-memory "how is it going right now" counter: up on a miss, down on
+    # a correct answer. The scheduler reads it to hand back a fact the student
+    # can do after a run of misses — placement that only ever escalates is how
+    # a child ends up answering 89% of questions wrong and stops trying.
+    recent_misses = models.PositiveSmallIntegerField(default=0)
+
+    @property
+    def enabled_operations(self):
+        """The student's operations, validated and in canonical order. Falls
+        back to the default pair if the stored value is empty or junk, so a
+        student can never end up with nothing to practice."""
+        return clean_operations(self.operations) or list(DEFAULT_OPERATIONS)
+
+    def practices(self, operation):
+        return operation in self.enabled_operations
 
     def __str__(self):
         return self.user.username
@@ -67,6 +111,10 @@ class FactProgress(models.Model):
     lapses = models.PositiveSmallIntegerField(default=0)
     ema_ms = models.PositiveIntegerField(null=True, blank=True)  # smoothed response time
     mastered = models.BooleanField(default=False)
+    # Answered correctly *and* fast on the very first exposure: evidence the
+    # student already had it, so it skips most of the Leitner ladder. Also what
+    # the placement ladder reads to decide the student is above this batch.
+    known_on_sight = models.BooleanField(default=False)
 
     class Meta:
         constraints = [

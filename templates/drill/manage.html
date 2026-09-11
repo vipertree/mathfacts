@@ -27,29 +27,73 @@
         <label>Daily goal (pts)</label>
         <input type="number" name="goal" value="150" min="20" max="600" step="10">
       </div>
+      <div class="field field-ops">
+        <label>Practices</label>
+        <div class="op-checks">
+          {% for op in op_choices %}
+          <label class="op-check">
+            <input type="checkbox" name="operations" value="{{ op.code }}"
+                   {% if op.default %}checked{% endif %}>
+            <span class="op-sym">{{ op.symbol }}</span> {{ op.name }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
       <button type="submit" class="btn-primary">Add student</button>
     </form>
     <p class="hint">No email needed. Students just log in with this username and password.
-       About 150 points is roughly 15 minutes of practice.</p>
+       About 150 points is roughly 15 minutes of practice.
+       Pick any one or more of the four operations — you can change it any time below.</p>
   </div>
 
   <div class="card">
-    <h2>Students ({{ students|length }})</h2>
-    {% if students %}
+    <h2>Students ({{ rows|length }})</h2>
+    {% if rows %}
+    <p class="hint">
+      Tick the operations each student should practice, then <strong>Save</strong>.
+      <em>Working on</em> is where the app has placed them: it moves on its own
+      as they answer, up when a new fact turns out to be already known and onto
+      whichever batch they start missing, so a student who arrives fluent is not
+      walked through the easy facts.
+      Turning one off hides it immediately but keeps every bit of progress, so
+      switching it back on picks up exactly where they left off.
+      Facts available: {% for t in op_totals %}{{ t.symbol }} {{ t.count }}{% if not forloop.last %} · {% endif %}{% endfor %}.
+    </p>
     <table class="student-table">
-      <tr><th>Username</th><th>Theme</th><th>Goal</th><th>Mastered</th><th></th><th>Reset password</th></tr>
-      {% for s in students %}
       <tr>
-        <td><strong>{{ s.user.username }}</strong>{% if s.user.is_staff %} <span class="badge">staff</span>{% endif %}</td>
-        <td>{{ s.theme }}</td>
-        <td>{{ s.daily_goal_points }}</td>
-        <td>{{ s.mastered }} / {{ total_facts }}</td>
-        <td><a href="{% url 'report' s.user.username %}">View report →</a></td>
+        <th>Username</th><th>Theme</th><th>Goal</th>
+        <th>Practices</th><th>Working on</th><th>Mastered</th><th></th><th>Reset password</th>
+      </tr>
+      {% for r in rows %}
+      <tr>
+        <td><strong>{{ r.student.user.username }}</strong>{% if r.student.user.is_staff %} <span class="badge">staff</span>{% endif %}</td>
+        <td>{{ r.student.theme }}</td>
+        <td>{{ r.student.daily_goal_points }}</td>
+        <td>
+          <form method="post" class="ops-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="set_operations">
+            <input type="hidden" name="student_id" value="{{ r.student.pk }}">
+            <div class="op-checks op-checks-tight">
+              {% for c in r.checks %}
+              <label class="op-check" title="{{ c.name }}">
+                <input type="checkbox" name="operations" value="{{ c.code }}"
+                       {% if c.on %}checked{% endif %}>
+                <span class="op-sym">{{ c.symbol }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <button type="submit" class="linklike-btn">Save</button>
+          </form>
+        </td>
+        <td class="working-on">{{ r.working_on }}</td>
+        <td>{{ r.mastered }} / {{ r.total }}</td>
+        <td><a href="{% url 'report' r.student.user.username %}">View report →</a></td>
         <td>
           <form method="post" class="reset-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="reset_password">
-            <input type="hidden" name="student_id" value="{{ s.pk }}">
+            <input type="hidden" name="student_id" value="{{ r.student.pk }}">
             <input type="text" name="password" placeholder="new password" required>
             <button type="submit" class="linklike-btn">Set</button>
           </form>

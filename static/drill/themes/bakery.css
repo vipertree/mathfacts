@@ -1,0 +1,27 @@
+/* Bakery theme — light: cream and butter panels, cocoa text.
+ * Its panel is close to pirate's cream, so the accents carry the difference:
+ * raspberry + toffee here against pirate's teal + doubloon gold.
+ * Optional art: static/drill/themes/bakery/background.webp
+ */
+
+body.theme-bakery {
+  --bg: linear-gradient(160deg, #fbeede 0%, #f6ddc2 50%, #efcdb0 100%);
+  /* optional art layered over the gradient; resolves to themes/bakery/background.webp */
+  background-image: url('bakery/background.webp'), var(--bg);
+  --panel: #fffaf0;
+  --panel-soft: #f8ead4;
+  --text: #4a2e1e;           /* cocoa, firmly dark on the cream */
+  --text-soft: #8a6a52;
+  --accent: #c2185b;         /* raspberry */
+  --accent-2: #b5702f;       /* toffee */
+  --good: #4f9e5c;
+  --soft-bad: #c96a4a;
+  --btn-bg: #fffdf7;
+  --btn-border: #e2cba9;
+}
+
+body.theme-bakery .topbar { background: rgba(120, 62, 44, .80); }
+body.theme-bakery .brand, body.theme-bakery .topbar a,
+body.theme-bakery .topbar .linklike { color: #ffeeda; }
+body.theme-bakery .card, body.theme-bakery .question-area,
+body.theme-bakery .model-area { border: 3px solid #e8c59b; }

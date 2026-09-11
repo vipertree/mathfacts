@@ -1,0 +1,29 @@
+/* Dinosaur theme — light: warm sand panels under a jungle-and-volcanic-clay
+ * sky. Optional art: static/drill/themes/dinosaur/background.webp
+ *
+ * Note on --panel-soft: it is a *background* shade (ten-frame fill, the inside
+ * of an equal-groups ring, faded array cells), so it stays a deeper sand
+ * rather than a deep fern — the fern lives in --bg where it belongs.
+ */
+
+body.theme-dinosaur {
+  --bg: linear-gradient(165deg, #2f5d3a 0%, #4b7a45 45%, #8a6f43 100%);
+  /* optional art layered over the gradient; resolves to themes/dinosaur/background.webp */
+  background-image: url('dinosaur/background.webp'), var(--bg);
+  --panel: #f7f0dd;
+  --panel-soft: #e9dfc2;
+  --text: #2a3320;           /* dark fern-brown, firmly dark on the sand */
+  --text-soft: #5f6b4c;
+  --accent: #2f7a78;         /* mossy teal */
+  --accent-2: #d1861a;       /* amber */
+  --good: #4a8a3f;
+  --soft-bad: #b5603a;       /* volcanic clay */
+  --btn-bg: #fdf8ea;
+  --btn-border: #c9bd97;
+}
+
+body.theme-dinosaur .topbar { background: rgba(30, 52, 34, .80); }
+body.theme-dinosaur .brand, body.theme-dinosaur .topbar a,
+body.theme-dinosaur .topbar .linklike { color: #eadfba; }
+body.theme-dinosaur .card, body.theme-dinosaur .question-area,
+body.theme-dinosaur .model-area { border: 3px solid #97854f; }

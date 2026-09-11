@@ -5,8 +5,8 @@ from .models import Attempt, DailyProgress, Fact, FactProgress, Student
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ['user', 'theme', 'daily_goal_points']
-    list_editable = ['theme', 'daily_goal_points']
+    list_display = ['user', 'theme', 'operations', 'daily_goal_points']
+    list_editable = ['theme', 'operations', 'daily_goal_points']
     raw_id_fields = ['user']
 
 

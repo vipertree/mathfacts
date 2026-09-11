@@ -122,8 +122,10 @@ class PracticeFlowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.student.refresh_from_db()
         self.assertEqual(self.student.theme, 'princess')
-        # invalid themes are ignored
-        self.client.post(reverse('set_theme'), {'theme': 'dinosaur'})
+        # invalid themes are ignored (the sentinel has to be something that
+        # will never become a real theme — 'dinosaur' used to sit here and
+        # then shipped as one)
+        self.client.post(reverse('set_theme'), {'theme': 'not-a-real-theme'})
         self.student.refresh_from_db()
         self.assertEqual(self.student.theme, 'princess')
 
@@ -199,17 +201,20 @@ class ManageTests(TestCase):
     def test_add_student_creates_user_and_student(self):
         response = self.client.post(reverse('manage'), {
             'action': 'add_student', 'username': 'newkid',
-            'password': 'pw12', 'theme': 'princess', 'goal': 200})
+            'password': 'pw12', 'theme': 'princess', 'goal': 200,
+            'operations': ['add', 'sub']})
         self.assertRedirects(response, reverse('manage'))
         student = Student.objects.get(user__username='newkid')
         self.assertEqual(student.theme, 'princess')
         self.assertEqual(student.daily_goal_points, 200)
+        self.assertEqual(student.operations, ['add', 'sub'])
         self.assertTrue(student.user.check_password('pw12'))
 
     def test_add_duplicate_username_rejected(self):
         User.objects.create_user('dupe', password='x')
         self.client.post(reverse('manage'), {
-            'action': 'add_student', 'username': 'dupe', 'password': 'pw12'})
+            'action': 'add_student', 'username': 'dupe', 'password': 'pw12',
+            'operations': ['add']})
         self.assertEqual(User.objects.filter(username='dupe').count(), 1)
 
     def test_reset_password(self):
