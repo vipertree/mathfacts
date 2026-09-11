@@ -126,6 +126,38 @@ class StylesheetTests(SimpleTestCase):
         self.assertEqual(on_disk, set(THEMES),
                          'a .css file with no registry entry, or vice versa')
 
+    def test_every_css_url_reference_resolves_to_a_real_file(self):
+        """The deploy blocker this guards: production uses
+        CompressedManifestStaticFilesStorage, and `collectstatic` *fails* —
+        MissingFileError, no static files at all — if a CSS url() points at a
+        file that isn't there. Every theme references an "optional"
+        <key>/background.webp, which makes it not optional; a transparent
+        placeholder keeps the reference valid while the slot is empty.
+        """
+        static = pathlib.Path(settings.BASE_DIR) / 'static'
+        css_files = [pathlib.Path(settings.BASE_DIR) / 'static' / 'drill' / 'css' / 'app.css']
+        css_files += sorted(THEME_DIR.glob('*.css'))
+        checked = 0
+        for css in css_files:
+            body = re.sub(r'/\*.*?\*/', '', css.read_text(), flags=re.S)
+            for ref in re.findall(r"""url\(\s*['"]?([^'")]+)['"]?\s*\)""", body):
+                if ref.startswith(('http:', 'https:', 'data:', '//', '#')):
+                    continue
+                target = (css.parent / ref).resolve()
+                self.assertTrue(
+                    target.exists(),
+                    f'{css.name} references {ref}, which does not exist — '
+                    f'collectstatic will fail on this in production')
+                self.assertTrue(str(target).startswith(str(static.resolve())))
+                checked += 1
+        self.assertEqual(checked, len(THEMES),
+                         'expected one background-image reference per theme')
+
+    def test_every_theme_has_an_art_slot_file(self):
+        for key in THEMES:
+            art = THEME_DIR / key / 'background.webp'
+            self.assertTrue(art.exists(), f'no art slot for {key}')
+
     def test_every_theme_has_a_chip_colour_on_the_picker(self):
         # the "Pick your world" chips preview each palette; without a rule a
         # new theme's chip renders in the *current* theme's colours
