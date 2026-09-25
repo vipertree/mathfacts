@@ -70,6 +70,43 @@ class PracticeFlowTests(TestCase):
         prog = FactProgress.objects.get(student=self.student, fact=fact)
         self.assertEqual(prog.lapses, 1)
 
+    def test_timeout_is_recorded_as_a_miss(self):
+        q = self.get_next()
+        fact = Fact.objects.get(id=q['fact_id'])
+        data = self.post_answer(q['fact_id'], None).json()
+        self.assertFalse(data['correct'])
+        self.assertTrue(data['timed_out'])
+        self.assertEqual(data['answer'], fact.answer)
+        self.assertEqual(data['points_earned'], 0)
+        attempt = Attempt.objects.get()
+        self.assertFalse(attempt.correct)
+        self.assertIsNone(attempt.given_answer)
+        prog = FactProgress.objects.get(student=self.student, fact=fact)
+        self.assertEqual(prog.lapses, 1)
+
+    def test_right_answer_after_the_window_is_a_miss(self):
+        q = self.get_next()
+        fact = Fact.objects.get(id=q['fact_id'])
+        # backdate the serve past the pace window + grace
+        session = self.client.session
+        late = (q['pace_ms'] + srs.TIMEOUT_GRACE_MS + 1000) / 1000
+        session['served']['at'] -= late
+        session.save()
+        data = self.post_answer(q['fact_id'], fact.answer).json()
+        self.assertFalse(data['correct'])
+        self.assertTrue(data['timed_out'])
+        self.assertEqual(data['points_earned'], 0)
+
+    def test_right_answer_inside_the_grace_still_counts(self):
+        q = self.get_next()
+        fact = Fact.objects.get(id=q['fact_id'])
+        session = self.client.session
+        session['served']['at'] -= (q['pace_ms'] + srs.TIMEOUT_GRACE_MS / 2) / 1000
+        session.save()
+        data = self.post_answer(q['fact_id'], fact.answer).json()
+        self.assertTrue(data['correct'])
+        self.assertFalse(data['timed_out'])
+
     def test_answer_must_match_served_question(self):
         q = self.get_next()
         other = Fact.objects.exclude(id=q['fact_id']).first()

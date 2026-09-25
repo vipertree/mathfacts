@@ -142,9 +142,10 @@
       hintTimer = setTimeout(renderModel, 6000);
     }
 
-    // gentle pace bar: drains over the real fluency window for this fact
-    // (long while learning, tightening toward 5s as the model fades).
-    // Nothing happens when it empties — it never fails or rushes the student.
+    // pace bar: drains over the real fluency window for this fact (long while
+    // learning, tightening toward 5s as the model fades). When it empties the
+    // question is over and counts as a miss; the server enforces the same
+    // window, so this is the student-facing half of that rule.
     const paceMs = q.pace_ms || 15000;
     el.pace.classList.remove('spent');
     el.pace.style.transition = 'none';
@@ -153,7 +154,10 @@
     el.pace.style.transition = 'width ' + paceMs + 'ms linear';
     el.pace.style.width = '0%';
     clearTimeout(spentTimer);
-    spentTimer = setTimeout(() => el.pace.classList.add('spent'), paceMs);
+    spentTimer = setTimeout(() => {
+      el.pace.classList.add('spent');
+      if (!locked) submit(null);
+    }, paceMs);
   }
 
   function renderModel() {
@@ -163,11 +167,12 @@
     el.model.hidden = false;
   }
 
+  // n === null means time ran out (sent as answer: null)
   async function submit(n) {
     locked = true;
     clearTimeout(hintTimer);
     clearTimeout(spentTimer);
-    el.answer.textContent = n;
+    el.answer.textContent = n === null ? '?' : n;
     const res = await fetch(ANSWER_URL, {
       method: 'POST',
       credentials: 'same-origin',
@@ -194,7 +199,8 @@
       el.answer.classList.add('shown');
       playSound('wrong');
       renderModel(); // a miss always earns the picture
-      feedback(pick(THEME.oops) + '  ' + q.a + ' ' + q.symbol + ' ' + q.b + ' = ' + result.answer, 'soft');
+      const lead = result.timed_out ? "⌛ Time's up!" : pick(THEME.oops);
+      feedback(lead + '  ' + q.a + ' ' + q.symbol + ' ' + q.b + ' = ' + result.answer, 'soft');
       setTimeout(() => {
         el.answer.classList.remove('shown');
         result.goal_just_met ? celebrate() : loadNext();

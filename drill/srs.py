@@ -74,6 +74,11 @@ WORKING_SET_MAX = 8        # don't introduce new facts past this many in-learnin
 MASTERED_MIX_PROB = 1 / 6  # chance of sprinkling in a mastered fact
 WRONG_RETRY = timedelta(seconds=45)  # missed facts come back within the session
 EMA_ALPHA = 0.3
+# The pace bar is a real limit: when it empties the client submits a timeout and
+# the fact is scored as a miss. The server enforces the same window so a slow
+# network or a throttled background tab can't sneak a late answer through as
+# right; the grace covers the round trip between the bar emptying and the POST.
+TIMEOUT_GRACE_MS = 2000
 MAX_RESPONSE_MS = 120000   # clamp: walked-away-from questions aren't 20-minute "answers"
 
 # --- placement (see the module docstring)

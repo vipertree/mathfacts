@@ -128,7 +128,8 @@ class FactProgress(models.Model):
 class Attempt(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attempts')
     fact = models.ForeignKey(Fact, on_delete=models.CASCADE)
-    given_answer = models.SmallIntegerField()
+    # None = the pace bar ran out before the student answered (scored as a miss)
+    given_answer = models.SmallIntegerField(null=True, blank=True)
     correct = models.BooleanField()
     response_ms = models.PositiveIntegerField()
     scaffold_shown = models.PositiveSmallIntegerField()
@@ -136,7 +137,8 @@ class Attempt(models.Model):
 
     def __str__(self):
         mark = '✓' if self.correct else '✗'
-        return f'{self.student} · {self.fact} → {self.given_answer} {mark}'
+        given = '⌛' if self.given_answer is None else self.given_answer
+        return f'{self.student} · {self.fact} → {given} {mark}'
 
 
 class DailyProgress(models.Model):

@@ -86,6 +86,8 @@ def _instructions(theme, goal, operations):
             ('🔢', keypad),
             ('👀', 'Pictures such as ten-frames, equal groups and arrays help you '
                    'see the math. They fade away as you get faster.'),
+            ('⏳', 'Answer before the timer bar runs out. If it empties, that '
+                   'one counts as a miss.'),
             ('⚡', f'Answer quickly to earn the most {points}! Aim to solve every '
                    'fact in under 5 seconds with no picture.'),
             ('📅', f'Practice a little every day, and the bar at the top fills up '
@@ -368,7 +370,8 @@ def api_answer(request):
     try:
         body = json.loads(request.body)
         fact_id = int(body['fact_id'])
-        given = int(body['answer'])
+        # answer: null means the pace bar ran out before they answered
+        given = None if body['answer'] is None else int(body['answer'])
     except (ValueError, KeyError, TypeError, json.JSONDecodeError):
         return HttpResponseBadRequest('bad payload')
 
@@ -383,7 +386,11 @@ def api_answer(request):
 
     prog = get_object_or_404(
         FactProgress.objects.select_related('fact'), student=student, fact_id=fact_id)
-    correct = (given == prog.fact.answer)
+    # Out of time is a miss, whether the client says so (answer: null) or the
+    # answer simply arrives after the pace window closed.
+    timed_out = (given is None or
+                 response_ms > srs.FLUENT_MS[prog.scaffold] + srs.TIMEOUT_GRACE_MS)
+    correct = (not timed_out and given == prog.fact.answer)
 
     Attempt.objects.create(
         student=student, fact=prog.fact, given_answer=given, correct=correct,
@@ -411,6 +418,7 @@ def api_answer(request):
 
     return JsonResponse({
         'correct': correct,
+        'timed_out': timed_out,
         'answer': prog.fact.answer,
         'points_earned': points,
         'mastered_now': mastered_now,

@@ -63,9 +63,11 @@ answer in under 5 seconds with no visual model.
   - `drill/tests/test_adaptivity.py` simulates beginners, part-fluent and
     stuck students against the real scheduler and asserts the placement lands
     in the right batch and the wrong-answer share stays in a sane band.
-- **Gentle timing**: a quiet 5-second pace bar; nothing buzzes, questions
-  never expire — speed only affects whether the answer counts as *fluent*
-  (and timing is measured server-side, so it can't be spoofed).
+- **Timing**: a pace bar drains over each fact's fluency window (20 s with
+  the full picture, 11 s fading, 6 s without). If it empties the question is
+  over and scored as a miss. Timing is measured server-side, so it can't be
+  spoofed: an answer that arrives after the window (plus a 2 s network grace)
+  is a miss even if the client never sent the timeout.
 - **Daily goal**: points come only from answered questions (3 fluent / 2
   correct / 0 wrong), so sitting idle earns nothing. The default 150-point
   goal is roughly 15 minutes of honest practice (tunable per student).
