@@ -34,6 +34,10 @@ Two independent things are decided here for every fact:
     18 div, /3 and /4                   (equal sharing)
     19 div, squares (36/6 ... 100/10)
     20 div, the tricky 6-9 facts        (think multiplication)
+    21-30 exp, positive and negative exponents interleaved (fact families,
+          like + and -): n^1 and 1^n, squares to 10^2, powers of two, cubes
+          and higher, then the big squares 11^2-22^2 — each batch followed by
+          its negative-exponent mirror (2^-3 = 1/8 right after 2^3 = 8)
 
    Multiplication and division come after addition and subtraction in the
    global order, but *which* operations a given student ever sees is a
@@ -63,10 +67,24 @@ BARS = 'bars'
 GROUPS = 'groups'          # equal groups: count the groups, count in each
 ARRAY = 'array'            # array / area model, optionally broken apart
 SKIP_LINE = 'skip_line'    # number line with equal hops (skip counting)
+NO_MODEL = 'none'          # no picture (exponents); the client draws nothing
 
 # Largest factor drilled for x and /. Bump to 12 and reseed for 12s tables;
 # every axis, grid and answer range below is derived from this.
 MUL_MAX = 10
+
+# Exponents: a positive whole base raised to a nonzero whole exponent, kept
+# while the value is below EXP_LIMIT (or, for a negative exponent, above
+# 1/EXP_LIMIT — the same facts read upside down). A negative-exponent fact
+# stores its *denominator* as the answer: 2^-3 = 1/8 is answered "8", with
+# the "1/" printed for the student. That keeps every answer a whole number,
+# so the keypad, scoring and Attempt rows need no special case.
+#
+# Bases stop at the largest whose square is under the limit (22). Without
+# that, n^1 alone would add 499 facts that are not facts at all. Base 1 is
+# capped at EXP_ONE_MAX for the same reason: 1^n is 1 for every n.
+EXP_LIMIT = 500
+EXP_ONE_MAX = 8
 
 # Highest answer a student can be asked to enter, per operation. Bounds the
 # keypad and the typed-answer auto-submit.
@@ -75,6 +93,7 @@ ANSWER_MAX = {
     'sub': 20,
     'mul': MUL_MAX * MUL_MAX,
     'div': MUL_MAX,
+    'exp': EXP_LIMIT - 1,
 }
 
 # Which keypad the practice screen shows. 'direct' is a button per number, so
@@ -87,6 +106,7 @@ KEYPAD = {
     'sub': 'direct',
     'mul': 'digits',
     'div': 'digits',
+    'exp': 'digits',
 }
 
 STRATEGY_MODEL = {
@@ -134,6 +154,12 @@ STRATEGY_MODEL = {
     'div_by_ten': SKIP_LINE,      # 70/10: how many hops of ten?
     'div_square': ARRAY,          # 49/7: the square array, one side known
     'div_think_mul': ARRAY,       # 56/7: 7 rows of what makes 56?
+    # exponents (no pictures yet: recall only)
+    'exp_one': NO_MODEL,          # n^1, 1^n (and their negatives)
+    'exp_square': NO_MODEL,       # 7^2
+    'exp_two': NO_MODEL,          # 2^5
+    'exp_cube': NO_MODEL,         # 3^3 .. 3^5, 4^3, 4^4, 5^3, 6^3, 7^3
+    'exp_big_square': NO_MODEL,   # 11^2 .. 22^2
 }
 
 STAGE_LABELS = {
@@ -157,6 +183,16 @@ STAGE_LABELS = {
     18: 'Division: ÷3 and ÷4',
     19: 'Division: squares',
     20: 'Division: the tricky ones',
+    21: 'Exponents: powers of 1, and n¹',
+    22: 'Negative exponents: 1/n',
+    23: 'Exponents: squares to 10²',
+    24: 'Negative exponents: squares',
+    25: 'Exponents: powers of 2',
+    26: 'Negative exponents: powers of 2',
+    27: 'Exponents: cubes and higher',
+    28: 'Negative exponents: cubes and higher',
+    29: 'Exponents: squares 11² to 22²',
+    30: 'Negative exponents: squares 11² to 22²',
 }
 
 # Which teaching batches belong to which operation (derived, kept for the
@@ -166,6 +202,7 @@ STAGES_BY_OP = {
     'sub': (2, 4, 6, 8),
     'mul': (9, 10, 11, 12, 13, 14),
     'div': (15, 16, 17, 18, 19, 20),
+    'exp': tuple(range(21, 31)),
 }
 
 
@@ -180,6 +217,8 @@ def strategy_for(operation, a, b):
         return _strategy_mul(a, b)
     if operation == 'div':
         return _strategy_div(a, b)
+    if operation == 'exp':
+        return _strategy_exp(a, b)
     raise ValueError(f'unknown operation: {operation}')
 
 
@@ -209,6 +248,8 @@ def stage_for(operation, a, b):
         return _stage_mul(a, b)
     if operation == 'div':
         return _stage_div(a, b)
+    if operation == 'exp':
+        return _stage_exp(a, b)
     raise ValueError(f'unknown operation: {operation}')
 
 
@@ -361,6 +402,30 @@ def _stage_div(a, b):
     return 20
 
 
+# ----------------------------------------------------------------- exponents
+
+def _strategy_exp(a, b):
+    """`a ** b`, b nonzero and possibly negative. The family ignores the sign:
+    2^-3 is 2^3 turned upside down."""
+    n = abs(b)
+    if a == 1 or n == 1:
+        return 'exp_one'
+    if n == 2:
+        return 'exp_square' if a <= 10 else 'exp_big_square'
+    if a == 2:
+        return 'exp_two'
+    return 'exp_cube'
+
+
+_EXP_FAMILY_STAGE = {'exp_one': 21, 'exp_square': 23, 'exp_two': 25,
+                     'exp_cube': 27, 'exp_big_square': 29}
+
+
+def _stage_exp(a, b):
+    """Each positive batch is followed directly by its negative mirror."""
+    return _EXP_FAMILY_STAGE[_strategy_exp(a, b)] + (1 if b < 0 else 0)
+
+
 # -------------------------------------------------------------------- order
 
 def _canonical_key(operation, a, b):
@@ -372,6 +437,8 @@ def _canonical_key(operation, a, b):
         return (a, b)
     if operation == 'mul':
         return (max(a, b), min(a, b), a)
+    if operation == 'exp':
+        return (a, b)
     q = _quotient(a, b)
     return (max(q, b), min(q, b), b)
 
@@ -447,10 +514,21 @@ def _domain(operation):
         # b is the divisor (never 0); the quotient stays inside the tables
         return [(b * q, b, q)
                 for b in range(1, MUL_MAX + 1) for q in range(MUL_MAX + 1)]
+    if operation == 'exp':
+        # the answer is the value, or the denominator for a negative exponent
+        facts = [(1, n, 1) for n in range(1, EXP_ONE_MAX + 1)]
+        base = 2
+        while base * base < EXP_LIMIT:
+            n = 1
+            while base ** n < EXP_LIMIT:
+                facts.append((base, n, base ** n))
+                n += 1
+            base += 1
+        return facts + [(a, -b, v) for a, b, v in facts]
     raise ValueError(f'unknown operation: {operation}')
 
 
-OPERATIONS = ('add', 'sub', 'mul', 'div')
+OPERATIONS = ('add', 'sub', 'mul', 'div', 'exp')
 
 
 def teaching_sequence(operations=OPERATIONS):
@@ -468,7 +546,7 @@ def teaching_sequence(operations=OPERATIONS):
 
 def generate_facts(operations=OPERATIONS):
     """Yield (operation, a, b, answer, strategy, stage, intro_order) for the
-    full four-operation domain, in teaching order."""
+    full domain, in teaching order."""
     for intro_order, (op, a, b, answer) in enumerate(teaching_sequence(operations)):
         yield (op, a, b, answer, strategy_for(op, a, b), stage_for(op, a, b),
                intro_order)
@@ -503,7 +581,18 @@ GRID_SPECS = {
                  'cell is the number being divided — so row 7, column 8 is '
                  '56 ÷ 7 = 8.'),
     },
+    # filled in below from the domain itself, so EXP_LIMIT stays the one knob
+    'exp': {
+        'rows': [], 'cols': [],
+        'row_head': 'base', 'col_head': 'exponent',
+        'note': ('Rows are the base and columns the exponent. A negative '
+                 'exponent’s cell shows the bottom of the fraction — row 2, '
+                 'column −3 is 2⁻³ = 1/8.'),
+    },
 }
+_EXP_DOMAIN = _domain('exp')
+GRID_SPECS['exp']['rows'] = sorted({a for a, _b, _v in _EXP_DOMAIN})
+GRID_SPECS['exp']['cols'] = sorted({b for _a, b, _v in _EXP_DOMAIN})
 
 
 def grid_cell(operation, a, b, answer):

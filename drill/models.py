@@ -3,10 +3,10 @@ from django.db import models
 
 from .strategies import OPERATIONS as ALL_OPERATIONS
 
-OP_SYMBOLS = {'add': '+', 'sub': '−', 'mul': '×', 'div': '÷'}
+OP_SYMBOLS = {'add': '+', 'sub': '−', 'mul': '×', 'div': '÷', 'exp': '^'}
 OP_NAMES = {'add': 'Addition', 'sub': 'Subtraction',
-            'mul': 'Multiplication', 'div': 'Division'}
-# canonical display/teaching order for the four operations
+            'mul': 'Multiplication', 'div': 'Division', 'exp': 'Exponents'}
+# canonical display/teaching order for the operations
 OP_ORDER = list(ALL_OPERATIONS)
 
 DEFAULT_OPERATIONS = ['add', 'sub']
@@ -32,10 +32,12 @@ class Fact(models.Model):
 
     operation = models.CharField(max_length=3, choices=OPERATIONS)
     a = models.PositiveSmallIntegerField()
-    b = models.PositiveSmallIntegerField()
+    # signed: an exponent can be negative (2^-3). For those facts `answer` is
+    # the denominator — 2^-3 = 1/8 stores 8 — so answers stay whole numbers.
+    b = models.SmallIntegerField()
     answer = models.PositiveSmallIntegerField()
     strategy = models.CharField(max_length=32)
-    stage = models.PositiveSmallIntegerField(db_index=True)  # teaching batch 1-20
+    stage = models.PositiveSmallIntegerField(db_index=True)  # teaching batch, see strategies.STAGE_LABELS
     intro_order = models.PositiveSmallIntegerField(default=0, db_index=True)  # SRS introduces in this order
 
     class Meta:
@@ -48,8 +50,19 @@ class Fact(models.Model):
     def symbol(self):
         return OP_SYMBOLS[self.operation]
 
+    @property
+    def reciprocal(self):
+        """True when the value is 1/answer (a negative exponent)."""
+        return self.operation == 'exp' and self.b < 0
+
     def __str__(self):
+        if self.operation == 'exp':
+            value = f'1/{self.answer}' if self.reciprocal else self.answer
+            return f'{self.a}{str(self.b).translate(SUPERSCRIPT)} = {value}'
         return f'{self.a} {self.symbol} {self.b} = {self.answer}'
+
+
+SUPERSCRIPT = str.maketrans('-0123456789', '⁻⁰¹²³⁴⁵⁶⁷⁸⁹')
 
 
 class Student(models.Model):

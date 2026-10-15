@@ -2,7 +2,8 @@ from django.test import SimpleTestCase
 
 from itertools import groupby
 
-from drill.strategies import (ANSWER_MAX, KEYPAD, MUL_MAX, OPERATIONS,
+from drill.strategies import (ANSWER_MAX, EXP_LIMIT, EXP_ONE_MAX, KEYPAD,
+                              MUL_MAX, OPERATIONS,
                               STAGE_LABELS, STAGES_BY_OP, STRATEGY_MODEL,
                               answer_max, generate_facts, grid_cell, grid_spec,
                               keypad_for, stage_for, strategy_for,
@@ -14,13 +15,14 @@ class GenerateFactsTests(SimpleTestCase):
         self.facts = list(generate_facts())
 
     def test_full_domain_counts(self):
-        counts = {op: 0 for op in ('add', 'sub', 'mul', 'div')}
+        counts = {op: 0 for op in OPERATIONS}
         for f in self.facts:
             counts[f[0]] += 1
         self.assertEqual(counts['add'], 231)   # a,b >= 0, a+b <= 20
         self.assertEqual(counts['sub'], 231)   # 0 <= b <= a <= 20
         self.assertEqual(counts['mul'], 121)   # 0..10 x 0..10
         self.assertEqual(counts['div'], 110)   # divisor 1..10, quotient 0..10
+        self.assertEqual(counts['exp'], 128)   # 64 powers under 500, and their reciprocals
 
     def test_answers_in_range(self):
         expect = {
@@ -28,6 +30,8 @@ class GenerateFactsTests(SimpleTestCase):
             'sub': lambda a, b: a - b,
             'mul': lambda a, b: a * b,
             'div': lambda a, b: a // b,
+            # a negative exponent stores the denominator: 2^-3 = 1/8 -> 8
+            'exp': lambda a, b: a ** abs(b),
         }
         for op, a, b, answer, _strategy, _stage, _order in self.facts:
             self.assertEqual(answer, expect[op](a, b), f'{op} {a} {b}')
@@ -50,6 +54,32 @@ class GenerateFactsTests(SimpleTestCase):
                 self.assertLessEqual(b, MUL_MAX, f'{a}/{b}')
                 self.assertLessEqual(answer, MUL_MAX, f'{a}/{b}')
 
+    def test_exponent_values_stay_between_one_over_the_limit_and_the_limit(self):
+        exps = [(a, b) for op, a, b, *_ in self.facts if op == 'exp']
+        for a, b in exps:
+            self.assertNotEqual(b, 0)
+            self.assertGreaterEqual(a, 1)
+            self.assertLess(a ** abs(b), EXP_LIMIT, f'{a}^{b}')
+        pos = {(a, b) for a, b in exps if b > 0}
+        self.assertEqual({(a, -b) for a, b in exps if b < 0}, pos,
+                         'every positive power has its reciprocal, and only those')
+        # the domain is complete: nothing under the limit was left out, for any
+        # base with a square under it (the cap on bases) and 1^1..1^EXP_ONE_MAX
+        for a in range(2, 23):
+            n = 1
+            while a ** n < EXP_LIMIT:
+                self.assertIn((a, n), pos, f'{a}^{n} missing')
+                n += 1
+        self.assertNotIn((23, 1), pos)
+        self.assertEqual({b for a, b in pos if a == 1},
+                         set(range(1, EXP_ONE_MAX + 1)))
+
+    def test_negative_exponents_follow_their_positive_batch(self):
+        for op, a, b, _ans, _s, stage, _o in self.facts:
+            if op == 'exp':
+                self.assertEqual(stage, stage_for('exp', a, abs(b)) + (b < 0),
+                                 f'{a}^{b}')
+
     def test_answer_max_matches_the_real_domain(self):
         # the keypad range the client is told about must actually cover every
         # answer that operation can ask for
@@ -60,6 +90,7 @@ class GenerateFactsTests(SimpleTestCase):
             self.assertLessEqual(most, ANSWER_MAX[op], op)
         self.assertEqual(widest['mul'], ANSWER_MAX['mul'])   # 10x10 = 100
         self.assertEqual(widest['div'], ANSWER_MAX['div'])   # 100/10 = 10
+        self.assertEqual(widest['exp'], 484)                 # 22^2
 
     def test_every_fact_has_known_strategy_and_stage(self):
         for op, a, b, _ans, strategy, stage, _order in self.facts:
@@ -153,6 +184,15 @@ class StrategySpotChecks(SimpleTestCase):
         ('div', 36, 6, 'div_square'),
         ('div', 56, 7, 'div_think_mul'),
         ('div', 48, 6, 'div_think_mul'),
+        # exponents: the sign never changes the family
+        ('exp', 1, 5, 'exp_one'), ('exp', 1, -5, 'exp_one'),
+        ('exp', 17, 1, 'exp_one'), ('exp', 17, -1, 'exp_one'),
+        ('exp', 7, 2, 'exp_square'), ('exp', 10, -2, 'exp_square'),
+        ('exp', 2, 2, 'exp_square'),
+        ('exp', 2, 8, 'exp_two'), ('exp', 2, -3, 'exp_two'),
+        ('exp', 3, 5, 'exp_cube'), ('exp', 7, -3, 'exp_cube'),
+        ('exp', 4, 4, 'exp_cube'),
+        ('exp', 11, 2, 'exp_big_square'), ('exp', 22, -2, 'exp_big_square'),
     ]
 
     def test_strategy_spot_checks(self):
@@ -161,9 +201,9 @@ class StrategySpotChecks(SimpleTestCase):
 
     def test_unknown_operation_raises(self):
         with self.assertRaises(ValueError):
-            strategy_for('pow', 2, 3)
+            strategy_for('log', 2, 3)
         with self.assertRaises(ValueError):
-            stage_for('pow', 2, 3)
+            stage_for('log', 2, 3)
 
     def test_dividing_by_zero_raises(self):
         with self.assertRaises(ValueError):
@@ -200,6 +240,12 @@ class StageSpotChecks(SimpleTestCase):
         ('div', 21, 3, 18), ('div', 32, 4, 18),
         ('div', 36, 6, 19), ('div', 64, 8, 19),
         ('div', 56, 7, 20), ('div', 54, 6, 20),
+        # exponents: each positive batch, then its reciprocals
+        ('exp', 1, 4, 21), ('exp', 9, 1, 21), ('exp', 1, -4, 22), ('exp', 9, -1, 22),
+        ('exp', 6, 2, 23), ('exp', 6, -2, 24),
+        ('exp', 2, 5, 25), ('exp', 2, -5, 26),
+        ('exp', 5, 3, 27), ('exp', 3, -4, 28),
+        ('exp', 19, 2, 29), ('exp', 19, -2, 30),
     ]
 
     def test_stage_spot_checks(self):

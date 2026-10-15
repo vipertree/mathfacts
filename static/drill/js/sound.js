@@ -86,6 +86,15 @@
                 { t: 0.10, freq: 587, dur: 0.10, type: 'triangle', gain: 0.15 },
                 { t: 0.20, freq: 880, dur: 0.30, type: 'triangle', gain: 0.15 }],
     },
+    plain: {
+      // pure sine tones, like a cabin chime: nothing to get excited about
+      correct: [{ freq: 659, dur: 0.12, type: 'sine', gain: 0.18 },
+                { t: 0.11, freq: 880, dur: 0.22, type: 'sine', gain: 0.16 }],
+      wrong:   [{ freq: 330, dur: 0.26, type: 'sine', gain: 0.18 }],
+      goal:    [{ freq: 523, dur: 0.14, type: 'sine', gain: 0.16 },
+                { t: 0.14, freq: 659, dur: 0.14, type: 'sine', gain: 0.16 },
+                { t: 0.28, freq: 784, dur: 0.36, type: 'sine', gain: 0.16 }],
+    },
   };
   SPECS.default = SPECS.pirate;
 

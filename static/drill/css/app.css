@@ -182,6 +182,8 @@ body {
 .theme-chip.chip-space    { background: #191036; color: #f5b9ff; border-color: #543391; }
 .theme-chip.chip-bakery   { background: #fff6e8; color: #8f2246; border-color: #e6c39d; }
 .theme-chip.chip-jungle   { background: #f0e8cd; color: #1d5b2c; border-color: #9b8a58; }
+.theme-chip.chip-plain    { background: #ffffff; color: #13294b; border-color: #13294b;
+                            font-family: 'Bitter', Georgia, serif; }
 .theme-chip.active { box-shadow: 0 0 0 3px var(--accent); }
 
 /* ---------- practice */
@@ -200,6 +202,13 @@ body {
             font-weight: bold; display: flex; justify-content: center; gap: .35em; }
 .answer-slot { min-width: 1.4em; color: var(--accent);
                border-bottom: 4px dashed var(--btn-border); }
+/* exponents: 2³ instead of 2 ^ 3. The base and exponent sit together, so the
+   flex gap is dropped between them and put back before the "=". */
+.equation.power { gap: 0; }
+.equation.power .eq-equals { margin: 0 .35em 0 .3em; }
+.exponent { font-size: .55em; align-self: flex-start; margin-left: .06em; }
+.answer-wrap { display: inline-flex; align-items: baseline; }
+.recip { margin-right: .05em; }
 .answer-slot.right { color: var(--good); border-bottom-color: var(--good); }
 .answer-slot.shown { color: var(--soft-bad); border-bottom-color: var(--soft-bad); }
 

@@ -141,6 +141,23 @@ THEMES = {
                                'trail! Collect {goal} 🍌 bananas a day to keep '
                                'your streak swinging.'),
     },
+    # The Safety Card look from calc-course: no story, no mascot business —
+    # plain words, navy and safety orange.
+    'plain': {
+        'name': 'Plain',
+        'greeting': 'Hello',
+        'icon': '✈️',
+        'mascot': '📋',
+        'points_name': 'points',
+        'point_icon': '✔️',
+        'cheers': ['Correct.', 'Right.', 'Well done.', 'Exactly.', 'Good.'],
+        'oops': ['Not quite.', 'Have another look.'],
+        'goal_met': "Today's goal is done. ✔️",
+        'practice_label': 'Start',
+        'instructions_title': 'How to practice',
+        'instructions_intro': ('Answer math facts to earn points. Earn {goal} '
+                               'points a day to keep your streak going.'),
+    },
 }
 
 DEFAULT_THEME = 'pirate'

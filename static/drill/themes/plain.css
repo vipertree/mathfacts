@@ -1,0 +1,63 @@
+/* Plain theme: the Safety Card look from calc-course (static/css/designs/
+ * safety.css there) — an airline safety card. Warm grey card stock, white
+ * panels with a 2px navy rule, a navy band across the top with an orange
+ * stripe, orange offset shadows instead of soft drop shadows, Bitter for
+ * headings and Atkinson Hyperlegible for reading. No art: the slot below is
+ * the transparent placeholder, and the card stock is meant to stay flat. */
+
+body.theme-plain {
+  --bg: linear-gradient(#dedad2, #dedad2);
+  background-image: url('plain/background.webp'), var(--bg);
+  --panel: #ffffff;
+  --panel-soft: #eeebe5;
+  --text: #13294b;           /* navy */
+  --text-soft: #56637a;
+  --accent: #ea6a1c;         /* safety orange */
+  --accent-2: #1d4e9e;       /* card blue */
+  --good: #1b7a4a;
+  --soft-bad: #b42318;
+  --btn-bg: #ffffff;
+  --btn-border: #13294b;
+  --radius: 12px;
+  --font-display: 'Bitter', Georgia, serif;
+  --font-body: 'Atkinson Hyperlegible', Verdana, sans-serif;
+}
+
+/* the navy band across the top of the card */
+body.theme-plain .topbar { background: #13294b; backdrop-filter: none;
+  border-bottom: 6px solid var(--accent); }
+body.theme-plain .brand, body.theme-plain .topbar a:hover,
+body.theme-plain .topbar .linklike:hover { color: #ffffff; }
+body.theme-plain .topbar a, body.theme-plain .topbar .linklike { color: #d2dae8; }
+body.theme-plain .ui-btn { border-color: #5a6f93; background: #16294a; color: #ffffff; }
+body.theme-plain .ui-btn:hover { border-color: var(--accent); }
+
+/* panels: a plain rule, no blur or drop shadow; the question gets the
+   card's orange offset */
+body.theme-plain .card, body.theme-plain .question-area,
+body.theme-plain .model-area, body.theme-plain .modal-card,
+body.theme-plain .celebrate-card { border: 2px solid #13294b; box-shadow: none; }
+body.theme-plain .question-area { box-shadow: 6px 6px 0 var(--accent); }
+body.theme-plain h1, body.theme-plain h2 { font-weight: 800; }
+
+/* buttons: big, plain, high contrast. White on safety orange is too faint,
+   so orange fills carry navy text, as on the card. */
+body.theme-plain .btn-primary { color: #13294b; border-radius: 10px;
+  box-shadow: none; border: 2px solid var(--accent); }
+body.theme-plain .btn-primary:hover { filter: brightness(1.06); }
+body.theme-plain .btn-secondary { border-radius: 10px; background: #ffffff; }
+body.theme-plain .num-btn { border-radius: 8px; }
+body.theme-plain .num-btn.typed { border-color: var(--accent); }
+body.theme-plain .badge, body.theme-plain .linklike-btn { color: #13294b; }
+body.theme-plain .theme-chip { border-radius: 10px; }
+body.theme-plain .custom-banner { border-radius: 12px; }
+body.theme-plain .custom-banner a { color: #13294b; text-decoration-color: var(--accent); }
+
+/* the typed answer in the card's darker orange, readable at any size */
+body.theme-plain .answer-slot { color: #c2410c; border-bottom-color: #13294b; }
+body.theme-plain .pace-fill { background: var(--accent); }
+body.theme-plain .goal-ring, body.theme-plain .goal-bar { border-radius: 6px; }
+
+/* feedback as the card's tinted panels rather than the dark pill */
+body.theme-plain .feedback.good { background: #dcf0e3; border-radius: 10px; }
+body.theme-plain .feedback.soft { background: #fbe3e0; border-radius: 10px; }

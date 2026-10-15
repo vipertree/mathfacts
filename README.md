@@ -1,7 +1,8 @@
 # Math Facts
 
-A web app for memorizing math facts — **all four operations**: addition and
-subtraction to 20, and the multiplication and division tables to 10 × 10.
+A web app for memorizing math facts — addition and subtraction to 20, the
+multiplication and division tables to 10 × 10, and **exponents** (positive
+whole bases to positive or negative powers, values under 500 or above 1/500).
 A teacher chooses which operations each student practices.
 
 The student makes **zero study decisions**: an SRS-style algorithm introduces
@@ -72,17 +73,37 @@ answer in under 5 seconds with no visual model.
   correct / 0 wrong), so sitting idle earns nothing. The default 150-point
   goal is roughly 15 minutes of honest practice (tunable per student).
 
+## Exponents
+
+`a^b` for a positive whole base and a nonzero whole exponent, kept while the
+value is under `EXP_LIMIT` (500) — or, for a negative exponent, above 1/500.
+That is 64 powers and their 64 reciprocals:
+
+- bases stop at 22, the largest whose square is under 500 (otherwise `n¹`
+  alone would add 499 non-facts), and `1ⁿ` runs to `EXP_ONE_MAX` = 8;
+- a negative-exponent fact stores its **denominator** as the answer:
+  `2⁻³ = 1/8` is answered `8`, with the `1/` already printed in front of the
+  answer slot. Every answer stays a whole number, so keypad, scoring and
+  attempts need no special case;
+- batches 21–30 interleave each positive family with its reciprocals, like
+  + and −: n¹ and 1ⁿ, squares to 10², powers of 2, cubes and higher, then
+  11²–22²;
+- no visual model yet (`'none'`); the scaffold still widens the pace window
+  for new facts;
+- the report grid is base × exponent, a symmetric pyramid around the missing
+  zero column.
+
 ## Running locally
 
 ```bash
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py seed_facts                  # 693 facts, idempotent
+python manage.py seed_facts                  # 821 facts, idempotent
 python manage.py createsuperuser             # your admin account
 python manage.py create_student kid pass123 --theme pirate
 python manage.py create_student ada pw --operations mul div   # times tables only
 python manage.py runserver 0.0.0.0:8006      # port convention: 8006 = mathfacts
-python manage.py test drill                  # 125 tests
+python manage.py test drill                  # 197 tests
 node --test tests/test_models.mjs            # 12 renderer tests, no browser
 ```
 
@@ -92,8 +113,8 @@ Staff can view any student's report at `/report/<username>/`.
 
 ## Choosing what a student practices
 
-Each student is assigned any one or more of the four operations
-(`Student.operations`, default addition + subtraction). Set it with the four
+Each student is assigned any one or more of the five operations
+(`Student.operations`, default addition + subtraction). Set it with the
 checkboxes per row on **Manage students** (`/manage/`), on the add-student
 form, with `create_student --operations`, or in the Django admin.
 
@@ -117,10 +138,12 @@ can't use a dividend axis — it would run to 100 — so its grid is
 
 ## Themes
 
-Eight ship now — **Pirate**, **High Tech**, **Princess**, **Dinosaur**,
-**Deep Sea**, **Space Cadet**, **Bakery** and **Jungle Explorer** (two of them
-dark: High Tech and Deep Sea, plus Space Cadet). Students switch on their home
-page.
+Nine ship now — **Pirate**, **High Tech**, **Princess**, **Dinosaur**,
+**Deep Sea**, **Space Cadet**, **Bakery**, **Jungle Explorer** and **Plain**
+(three of them dark: High Tech, Deep Sea and Space Cadet). Plain is the
+Safety Card look from calc-course — warm grey card stock, navy rules, a navy
+top band with a safety-orange stripe, Bitter and Atkinson Hyperlegible, and
+plain words instead of a story. Students switch on their home page.
 Adding a theme = one entry in `drill/themes.py` (names, emoji, phrase pools,
 instructions text) + one CSS custom-property file at
 `static/drill/themes/<key>.css` + a `.chip-<key>` rule in `app.css` (the

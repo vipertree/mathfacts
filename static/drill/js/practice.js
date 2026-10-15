@@ -12,6 +12,8 @@
     op: document.getElementById('eq-op'),
     b: document.getElementById('eq-b'),
     answer: document.getElementById('eq-answer'),
+    recip: document.getElementById('eq-recip'),
+    equation: document.getElementById('equation'),
     model: document.getElementById('model-area'),
     feedback: document.getElementById('feedback'),
     numpad: document.getElementById('numpad'),
@@ -27,9 +29,10 @@
   // (strategies.KEYPAD), because it is a property of the operation:
   //  * 'direct' (+ and −): a button per number 0-20, so every answer is one
   //    tap and tapping submits straight away.
-  //  * 'digits' (× and ÷): a 0-9 pad with ⌫ and ⏎. Multiplication answers run
-  //    to 100 — 101 buttons would be a wall of numbers — and division uses the
-  //    same pad so the two feel identical to type.
+  //  * 'digits' (×, ÷ and exponents): a 0-9 pad with ⌫ and ⏎.
+  //    Multiplication answers run to 100 — 101 buttons would be a wall of
+  //    numbers — and division uses the same pad so the two feel identical to
+  //    type. Exponents run to 499.
   // `buttons[n]` only exists on the direct pad.
   const DIGITS = ['1','2','3','4','5','6','7','8','9'];
   let buttons = [], padKind = null, padMax = null;
@@ -125,9 +128,7 @@
     answerMax = data.answer_max || 20;
     answerDigits = data.answer_digits || 0;
     buildPad(data.keypad === 'digits' ? 'digits' : 'direct', answerMax);
-    el.a.textContent = q.a;
-    el.op.textContent = q.symbol;
-    el.b.textContent = q.b;
+    renderEquation();
     el.answer.textContent = '?';
     clearFeedback();
     highlight(null);
@@ -158,6 +159,27 @@
       el.pace.classList.add('spent');
       if (!locked) submit(null);
     }, paceMs);
+  }
+
+  // Exponents print as a raised exponent, not "2 ^ 3". A negative exponent's
+  // answer is the denominator (the server stores 2^-3 = 1/8 as 8), so the
+  // "1/" is drawn in front of the answer slot and the student types the 8.
+  function renderEquation() {
+    const exp = q.op === 'exp';
+    el.a.textContent = q.a;
+    el.op.textContent = exp ? '' : q.symbol;
+    el.op.hidden = exp;
+    el.b.textContent = exp ? String(q.b).replace('-', '−') : q.b;
+    el.b.classList.toggle('exponent', exp);
+    el.equation.classList.toggle('power', exp);
+    el.recip.hidden = !(exp && q.b < 0);
+  }
+
+  // The fact written out on one line, for the feedback after a miss.
+  function factText(answer) {
+    if (q.op !== 'exp') return q.a + ' ' + q.symbol + ' ' + q.b + ' = ' + answer;
+    const sup = String(q.b).replace(/[-0-9]/g, c => '⁻⁰¹²³⁴⁵⁶⁷⁸⁹'['-0123456789'.indexOf(c)]);
+    return q.a + sup + ' = ' + (q.b < 0 ? '1/' : '') + answer;
   }
 
   function renderModel() {
@@ -200,7 +222,7 @@
       playSound('wrong');
       renderModel(); // a miss always earns the picture
       const lead = result.timed_out ? "⌛ Time's up!" : pick(THEME.oops);
-      feedback(lead + '  ' + q.a + ' ' + q.symbol + ' ' + q.b + ' = ' + result.answer, 'soft');
+      feedback(lead + '  ' + factText(result.answer), 'soft');
       setTimeout(() => {
         el.answer.classList.remove('shown');
         result.goal_just_met ? celebrate() : loadNext();
@@ -218,6 +240,7 @@
     el.numpad.innerHTML = '';
     el.model.hidden = true;
     el.a.textContent = ''; el.op.textContent = ''; el.b.textContent = '';
+    el.recip.hidden = true;
     el.answer.textContent = '';
     feedback(message || 'Nothing to practice yet — ask your teacher.', 'soft');
   }

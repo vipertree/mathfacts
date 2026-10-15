@@ -77,13 +77,22 @@ def _instructions(theme, goal, operations):
         keypad = ('Tap the digits to build your answer, then tap ⏎ (or press '
                   'Enter). ⌫ rubs out a digit.')
     else:
-        keypad = ('For + and −, tap any number from 0 to 20. For × and ÷, tap '
-                  'the digits to build your answer and then tap ⏎.')
+        on_digits = ' and '.join(OP_SYMBOLS[op] for op in operations
+                                 if keypad_for(op) == 'digits')
+        keypad = ('For + and −, tap any number from 0 to 20. For '
+                  f'{on_digits}, tap the digits to build your answer and then '
+                  'tap ⏎.')
+    extra = []
+    if 'exp' in operations:
+        extra.append(('🔁', 'A negative exponent flips the number over: '
+                            '2⁻³ = 1/2³ = 1/8. The 1/ is already there — just '
+                            'enter the bottom number.'))
     return {
         'title': theme['instructions_title'],
         'intro': theme['instructions_intro'].format(goal=goal),
         'steps': [
             ('🔢', keypad),
+            *extra,
             ('👀', 'Pictures such as ten-frames, equal groups and arrays help you '
                    'see the math. They fade away as you get faster.'),
             ('⏳', 'Answer before the timer bar runs out. If it empties, that '
@@ -190,7 +199,7 @@ def set_theme(request):
 
 @staff_member_required
 def manage(request):
-    """Teacher dashboard: add students, choose which of the four operations
+    """Teacher dashboard: add students, choose which operations
     each one practices, reset their passwords, jump to reports. Students are
     created here or via `manage.py create_student`, never by self-signup, and
     never with an email."""

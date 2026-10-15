@@ -507,11 +507,11 @@ class PracticeApiOperationsTests(TestCase):
         # the footgun this catches: add a strategy, map it to a new picture,
         # forget to ship or load the .js — the student just sees no model
         from django.conf import settings
-        from drill.strategies import STRATEGY_MODEL
+        from drill.strategies import NO_MODEL, STRATEGY_MODEL
         html = self.client.get(reverse('practice')).content.decode()
         js_dir = settings.BASE_DIR / 'static' / 'drill' / 'js' / 'models'
         on_disk = {p.stem: p.name for p in js_dir.glob('*.js')}
-        for model in sorted(set(STRATEGY_MODEL.values())):
+        for model in sorted(set(STRATEGY_MODEL.values()) - {NO_MODEL}):
             stem = model.replace('_', '')
             self.assertIn(stem, on_disk, f'no renderer file for "{model}"')
             self.assertIn(on_disk[stem], html,
@@ -539,3 +539,63 @@ class CreateStudentCommandTests(TestCase):
                      '--ops', 'div', 'add', verbosity=0)
         student = Student.objects.get(user__username='kid')
         self.assertEqual(student.operations, ['add', 'div'])
+
+
+class ExponentTests(TestCase):
+    """Negative exponents store the denominator as the answer, so the whole
+    pipeline — keypad, scoring, report — runs on whole numbers."""
+
+    @classmethod
+    def setUpTestData(cls):
+        seeded()
+
+    def setUp(self):
+        self.user = User.objects.create_user('pow', password='pw')
+        self.student = Student.objects.create(user=self.user, operations=['exp'])
+        self.client.login(username='pow', password='pw')
+
+    def test_negative_exponent_fact_reads_as_a_fraction(self):
+        self.assertEqual(str(Fact.objects.get(operation='exp', a=2, b=-3)), '2⁻³ = 1/8')
+        self.assertEqual(str(Fact.objects.get(operation='exp', a=3, b=4)), '3⁴ = 81')
+        self.assertTrue(Fact.objects.get(operation='exp', a=2, b=-3).reciprocal)
+        self.assertFalse(Fact.objects.get(operation='mul', a=2, b=3).reciprocal)
+
+    def test_a_negative_exponent_is_answered_with_its_denominator(self):
+        fact = Fact.objects.get(operation='exp', a=2, b=-3)
+        FactProgress.objects.create(student=self.student, fact=fact,
+                                    due_at=timezone.now() - timedelta(minutes=1),
+                                    introduced_at=timezone.now(), box=1)
+        q = None
+        for _ in range(40):          # until the scheduler serves it
+            q = self.client.get(reverse('api_next')).json()
+            if q['fact_id'] == fact.id:
+                break
+            self.client.post(reverse('api_answer'), json.dumps(
+                {'fact_id': q['fact_id'], 'answer': None}),
+                content_type='application/json')
+        self.assertEqual(q['fact_id'], fact.id)
+        self.assertEqual((q['op'], q['a'], q['b']), ('exp', 2, -3))
+        self.assertEqual(q['keypad'], 'digits')
+        self.assertEqual(q['answer_digits'], 1)
+        self.assertEqual(q['model'], 'none')
+        r = self.client.post(reverse('api_answer'), json.dumps(
+            {'fact_id': fact.id, 'answer': 8}), content_type='application/json')
+        self.assertTrue(r.json()['correct'])
+
+    def test_exponent_student_starts_at_the_first_exponent_batch(self):
+        self.assertEqual(srs.next_question(self.student).fact.stage, 21)
+
+    def test_report_has_an_exponent_grid_with_negative_columns(self):
+        response = self.client.get(reverse('progress'))
+        grids = response.context['grids']
+        self.assertEqual([g['op'] for g in grids], ['exp'])
+        self.assertIn(-3, grids[0]['cols'])
+        self.assertNotIn(0, grids[0]['cols'])
+        row2 = next(r for r in grids[0]['rows'] if r['head'] == 2)
+        cell = row2['cells'][grids[0]['cols'].index(-3)]
+        self.assertEqual(cell['label'], 8)
+
+    def test_instructions_explain_negative_exponents(self):
+        response = self.client.get(reverse('home'))
+        steps = ' '.join(text for _icon, text in response.context['instructions']['steps'])
+        self.assertIn('1/8', steps)
