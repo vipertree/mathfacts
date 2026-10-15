@@ -208,7 +208,14 @@ body {
 .equation.power .eq-equals { margin: 0 .35em 0 .3em; }
 .exponent { font-size: .55em; align-self: flex-start; margin-left: .06em; }
 .answer-wrap { display: inline-flex; align-items: baseline; }
-.recip { margin-right: .05em; }
+/* a negative exponent's answer is a fraction: the 1 sits on a bar above the
+   answer slot. The numerator stretches to the slot's width so the bar always
+   covers the denominator, however many digits get typed. */
+.answer-wrap.frac { flex-direction: column; align-items: center;
+                    font-size: .62em; line-height: 1.1; }
+.answer-wrap.frac .recip { align-self: stretch; text-align: center;
+                           border-bottom: .09em solid currentColor;
+                           padding-bottom: .04em; margin-bottom: .08em; }
 .answer-slot.right { color: var(--good); border-bottom-color: var(--good); }
 .answer-slot.shown { color: var(--soft-bad); border-bottom-color: var(--soft-bad); }
 

@@ -2,6 +2,7 @@
 and off from the Manage students page, and everything downstream of that
 choice (what the SRS serves, what the report shows, what the keypad allows).
 """
+import io
 import json
 from datetime import timedelta
 from unittest import mock
@@ -581,6 +582,48 @@ class ExponentTests(TestCase):
         r = self.client.post(reverse('api_answer'), json.dumps(
             {'fact_id': fact.id, 'answer': 8}), content_type='application/json')
         self.assertTrue(r.json()['correct'])
+
+    def test_ten_to_the_minus_five_takes_a_six_digit_answer(self):
+        # 100000 overflows a SmallIntegerField on Postgres; answer and
+        # given_answer are plain integers for this fact
+        fact = Fact.objects.get(operation='exp', a=10, b=-5)
+        self.assertEqual(fact.answer, 100000)
+        self.assertEqual(str(fact), '10⁻⁵ = 1/100000')
+        FactProgress.objects.create(student=self.student, fact=fact,
+                                    due_at=timezone.now() - timedelta(minutes=1),
+                                    introduced_at=timezone.now(), box=1)
+        for _ in range(40):
+            q = self.client.get(reverse('api_next')).json()
+            if q['fact_id'] == fact.id:
+                break
+            self.client.post(reverse('api_answer'), json.dumps(
+                {'fact_id': q['fact_id'], 'answer': None}),
+                content_type='application/json')
+        self.assertEqual(q['fact_id'], fact.id)
+        self.assertEqual(q['answer_digits'], 6)
+        self.assertGreaterEqual(q['answer_max'], 100000)
+        r = self.client.post(reverse('api_answer'), json.dumps(
+            {'fact_id': fact.id, 'answer': 100000}), content_type='application/json')
+        self.assertTrue(r.json()['correct'])
+
+    def test_bases_stop_at_ten(self):
+        self.assertFalse(Fact.objects.filter(operation='exp', a__gt=10).exists())
+        self.assertEqual(
+            sorted(Fact.objects.filter(operation='exp', a=10, b__gt=0)
+                   .values_list('b', flat=True)), [1, 2, 3, 4, 5])
+
+    def test_reseeding_removes_facts_that_left_the_domain(self):
+        # what the bases-to-10 change did to the live table: 11^2 was a fact,
+        # had progress, and must not survive a reseed to keep being served
+        old = Fact.objects.create(operation='exp', a=11, b=2, answer=121,
+                                  strategy='exp_square', stage=29)
+        FactProgress.objects.create(student=self.student, fact=old,
+                                    due_at=timezone.now(),
+                                    introduced_at=timezone.now(), box=1)
+        call_command('seed_facts', stdout=io.StringIO())
+        self.assertFalse(Fact.objects.filter(pk=old.pk).exists())
+        self.assertFalse(FactProgress.objects.filter(fact_id=old.pk).exists())
+        self.assertTrue(Fact.objects.filter(operation='exp', a=10, b=-5).exists())
 
     def test_exponent_student_starts_at_the_first_exponent_batch(self):
         self.assertEqual(srs.next_question(self.student).fact.stage, 21)

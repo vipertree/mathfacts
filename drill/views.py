@@ -85,8 +85,8 @@ def _instructions(theme, goal, operations):
     extra = []
     if 'exp' in operations:
         extra.append(('🔁', 'A negative exponent flips the number over: '
-                            '2⁻³ = 1/2³ = 1/8. The 1/ is already there — just '
-                            'enter the bottom number.'))
+                            '2⁻³ = 1/2³ = 1/8. The 1 on top is already there, '
+                            'so just enter the bottom number.'))
     return {
         'title': theme['instructions_title'],
         'intro': theme['instructions_intro'].format(goal=goal),

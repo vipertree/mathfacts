@@ -36,7 +36,7 @@ Two independent things are decided here for every fact:
     20 div, the tricky 6-9 facts        (think multiplication)
     21-30 exp, positive and negative exponents interleaved (fact families,
           like + and -): n^1 and 1^n, squares to 10^2, powers of two, cubes
-          and higher, then the big squares 11^2-22^2 — each batch followed by
+          and higher, then powers of ten to 10^5 — each batch followed by
           its negative-exponent mirror (2^-3 = 1/8 right after 2^3 = 8)
 
    Multiplication and division come after addition and subtraction in the
@@ -73,18 +73,20 @@ NO_MODEL = 'none'          # no picture (exponents); the client draws nothing
 # every axis, grid and answer range below is derived from this.
 MUL_MAX = 10
 
-# Exponents: a positive whole base raised to a nonzero whole exponent, kept
-# while the value is below EXP_LIMIT (or, for a negative exponent, above
+# Exponents: a whole base 1..EXP_MAX_BASE raised to a nonzero whole exponent,
+# kept while the value is below EXP_LIMIT (or, for a negative exponent, above
 # 1/EXP_LIMIT — the same facts read upside down). A negative-exponent fact
 # stores its *denominator* as the answer: 2^-3 = 1/8 is answered "8", with
-# the "1/" printed for the student. That keeps every answer a whole number,
-# so the keypad, scoring and Attempt rows need no special case.
+# the 1 and the fraction bar drawn for the student. That keeps every answer
+# a whole number, so the keypad, scoring and Attempt rows need no special case.
 #
-# Bases stop at the largest whose square is under the limit (22). Without
-# that, n^1 alone would add 499 facts that are not facts at all. Base 1 is
-# capped at EXP_ONE_MAX for the same reason: 1^n is 1 for every n.
+# Two exceptions to the limit: base 1 is capped at EXP_ONE_MAX (1^n is 1 for
+# every n), and base 10 runs to 10^EXP_TEN_MAX regardless of the limit,
+# because the powers of ten are worth knowing well past 500.
 EXP_LIMIT = 500
+EXP_MAX_BASE = 10
 EXP_ONE_MAX = 8
+EXP_TEN_MAX = 5
 
 # Highest answer a student can be asked to enter, per operation. Bounds the
 # keypad and the typed-answer auto-submit.
@@ -93,7 +95,7 @@ ANSWER_MAX = {
     'sub': 20,
     'mul': MUL_MAX * MUL_MAX,
     'div': MUL_MAX,
-    'exp': EXP_LIMIT - 1,
+    'exp': 10 ** EXP_TEN_MAX,
 }
 
 # Which keypad the practice screen shows. 'direct' is a button per number, so
@@ -159,7 +161,7 @@ STRATEGY_MODEL = {
     'exp_square': NO_MODEL,       # 7^2
     'exp_two': NO_MODEL,          # 2^5
     'exp_cube': NO_MODEL,         # 3^3 .. 3^5, 4^3, 4^4, 5^3, 6^3, 7^3
-    'exp_big_square': NO_MODEL,   # 11^2 .. 22^2
+    'exp_ten': NO_MODEL,          # 10^3 .. 10^5
 }
 
 STAGE_LABELS = {
@@ -191,8 +193,8 @@ STAGE_LABELS = {
     26: 'Negative exponents: powers of 2',
     27: 'Exponents: cubes and higher',
     28: 'Negative exponents: cubes and higher',
-    29: 'Exponents: squares 11² to 22²',
-    30: 'Negative exponents: squares 11² to 22²',
+    29: 'Exponents: powers of 10',
+    30: 'Negative exponents: powers of 10',
 }
 
 # Which teaching batches belong to which operation (derived, kept for the
@@ -411,14 +413,16 @@ def _strategy_exp(a, b):
     if a == 1 or n == 1:
         return 'exp_one'
     if n == 2:
-        return 'exp_square' if a <= 10 else 'exp_big_square'
+        return 'exp_square'
     if a == 2:
         return 'exp_two'
+    if a == 10:
+        return 'exp_ten'
     return 'exp_cube'
 
 
 _EXP_FAMILY_STAGE = {'exp_one': 21, 'exp_square': 23, 'exp_two': 25,
-                     'exp_cube': 27, 'exp_big_square': 29}
+                     'exp_cube': 27, 'exp_ten': 29}
 
 
 def _stage_exp(a, b):
@@ -517,13 +521,11 @@ def _domain(operation):
     if operation == 'exp':
         # the answer is the value, or the denominator for a negative exponent
         facts = [(1, n, 1) for n in range(1, EXP_ONE_MAX + 1)]
-        base = 2
-        while base * base < EXP_LIMIT:
+        for base in range(2, EXP_MAX_BASE + 1):
             n = 1
-            while base ** n < EXP_LIMIT:
+            while base ** n < EXP_LIMIT or (base == 10 and n <= EXP_TEN_MAX):
                 facts.append((base, n, base ** n))
                 n += 1
-            base += 1
         return facts + [(a, -b, v) for a, b, v in facts]
     raise ValueError(f'unknown operation: {operation}')
 

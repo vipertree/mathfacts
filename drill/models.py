@@ -35,7 +35,8 @@ class Fact(models.Model):
     # signed: an exponent can be negative (2^-3). For those facts `answer` is
     # the denominator — 2^-3 = 1/8 stores 8 — so answers stay whole numbers.
     b = models.SmallIntegerField()
-    answer = models.PositiveSmallIntegerField()
+    # a plain integer, not a small one: 10^5 = 100000 is past 32767
+    answer = models.PositiveIntegerField()
     strategy = models.CharField(max_length=32)
     stage = models.PositiveSmallIntegerField(db_index=True)  # teaching batch, see strategies.STAGE_LABELS
     intro_order = models.PositiveSmallIntegerField(default=0, db_index=True)  # SRS introduces in this order
@@ -142,7 +143,7 @@ class Attempt(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attempts')
     fact = models.ForeignKey(Fact, on_delete=models.CASCADE)
     # None = the pace bar ran out before the student answered (scored as a miss)
-    given_answer = models.SmallIntegerField(null=True, blank=True)
+    given_answer = models.IntegerField(null=True, blank=True)
     correct = models.BooleanField()
     response_ms = models.PositiveIntegerField()
     scaffold_shown = models.PositiveSmallIntegerField()

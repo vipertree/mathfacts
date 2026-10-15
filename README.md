@@ -75,23 +75,27 @@ answer in under 5 seconds with no visual model.
 
 ## Exponents
 
-`a^b` for a positive whole base and a nonzero whole exponent, kept while the
-value is under `EXP_LIMIT` (500) — or, for a negative exponent, above 1/500.
-That is 64 powers and their 64 reciprocals:
+`a^b` for a whole base 1–10 and a nonzero whole exponent, kept while the value
+is under `EXP_LIMIT` (500) — or, for a negative exponent, above 1/500. That is
+43 powers and their 43 reciprocals:
 
-- bases stop at 22, the largest whose square is under 500 (otherwise `n¹`
-  alone would add 499 non-facts), and `1ⁿ` runs to `EXP_ONE_MAX` = 8;
+- bases stop at `EXP_MAX_BASE` = 10, and `1ⁿ` runs to `EXP_ONE_MAX` = 8;
+- base 10 ignores the limit and runs to `10^EXP_TEN_MAX` = 10⁵ (and down to
+  10⁻⁵), so `Fact.answer` and `Attempt.given_answer` are plain integers;
+  100000 does not fit a small one;
 - a negative-exponent fact stores its **denominator** as the answer:
-  `2⁻³ = 1/8` is answered `8`, with the `1/` already printed in front of the
-  answer slot. Every answer stays a whole number, so keypad, scoring and
-  attempts need no special case;
+  `2⁻³ = 1/8` is answered `8`. The answer slot is drawn as the bottom of a
+  stacked fraction, with the 1 and the bar already there. Every answer stays a
+  whole number, so keypad, scoring and attempts need no special case;
 - batches 21–30 interleave each positive family with its reciprocals, like
   + and −: n¹ and 1ⁿ, squares to 10², powers of 2, cubes and higher, then
-  11²–22²;
+  powers of 10 (10³–10⁵);
 - no visual model yet (`'none'`); the scaffold still widens the pace window
   for new facts;
 - the report grid is base × exponent, a symmetric pyramid around the missing
-  zero column.
+  zero column;
+- `seed_facts` **deletes** facts that have left the domain (with their
+  progress and attempts), so narrowing a range takes effect on reseed.
 
 ## Running locally
 

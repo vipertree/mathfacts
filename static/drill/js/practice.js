@@ -13,6 +13,7 @@
     b: document.getElementById('eq-b'),
     answer: document.getElementById('eq-answer'),
     recip: document.getElementById('eq-recip'),
+    answerWrap: document.getElementById('answer-wrap'),
     equation: document.getElementById('equation'),
     model: document.getElementById('model-area'),
     feedback: document.getElementById('feedback'),
@@ -163,7 +164,8 @@
 
   // Exponents print as a raised exponent, not "2 ^ 3". A negative exponent's
   // answer is the denominator (the server stores 2^-3 = 1/8 as 8), so the
-  // "1/" is drawn in front of the answer slot and the student types the 8.
+  // answer slot becomes the bottom of a stacked fraction with the 1 and the
+  // bar already drawn, and the student types the 8.
   function renderEquation() {
     const exp = q.op === 'exp';
     el.a.textContent = q.a;
@@ -172,7 +174,9 @@
     el.b.textContent = exp ? String(q.b).replace('-', '−') : q.b;
     el.b.classList.toggle('exponent', exp);
     el.equation.classList.toggle('power', exp);
-    el.recip.hidden = !(exp && q.b < 0);
+    const frac = exp && q.b < 0;
+    el.recip.hidden = !frac;
+    el.answerWrap.classList.toggle('frac', frac);
   }
 
   // The fact written out on one line, for the feedback after a miss.
@@ -241,6 +245,7 @@
     el.model.hidden = true;
     el.a.textContent = ''; el.op.textContent = ''; el.b.textContent = '';
     el.recip.hidden = true;
+    el.answerWrap.classList.remove('frac');
     el.answer.textContent = '';
     feedback(message || 'Nothing to practice yet — ask your teacher.', 'soft');
   }

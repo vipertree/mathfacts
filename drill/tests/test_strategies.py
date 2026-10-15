@@ -2,7 +2,8 @@ from django.test import SimpleTestCase
 
 from itertools import groupby
 
-from drill.strategies import (ANSWER_MAX, EXP_LIMIT, EXP_ONE_MAX, KEYPAD,
+from drill.strategies import (ANSWER_MAX, EXP_LIMIT, EXP_MAX_BASE,
+                              EXP_ONE_MAX, EXP_TEN_MAX, KEYPAD,
                               MUL_MAX, OPERATIONS,
                               STAGE_LABELS, STAGES_BY_OP, STRATEGY_MODEL,
                               answer_max, generate_facts, grid_cell, grid_spec,
@@ -22,7 +23,7 @@ class GenerateFactsTests(SimpleTestCase):
         self.assertEqual(counts['sub'], 231)   # 0 <= b <= a <= 20
         self.assertEqual(counts['mul'], 121)   # 0..10 x 0..10
         self.assertEqual(counts['div'], 110)   # divisor 1..10, quotient 0..10
-        self.assertEqual(counts['exp'], 128)   # 64 powers under 500, and their reciprocals
+        self.assertEqual(counts['exp'], 86)    # 43 powers (bases 1-10), and their reciprocals
 
     def test_answers_in_range(self):
         expect = {
@@ -59,18 +60,23 @@ class GenerateFactsTests(SimpleTestCase):
         for a, b in exps:
             self.assertNotEqual(b, 0)
             self.assertGreaterEqual(a, 1)
-            self.assertLess(a ** abs(b), EXP_LIMIT, f'{a}^{b}')
+            self.assertLessEqual(a, EXP_MAX_BASE)
+            if a != 10:
+                self.assertLess(a ** abs(b), EXP_LIMIT, f'{a}^{b}')
         pos = {(a, b) for a, b in exps if b > 0}
         self.assertEqual({(a, -b) for a, b in exps if b < 0}, pos,
                          'every positive power has its reciprocal, and only those')
-        # the domain is complete: nothing under the limit was left out, for any
-        # base with a square under it (the cap on bases) and 1^1..1^EXP_ONE_MAX
-        for a in range(2, 23):
+        # the domain is complete: nothing under the limit was left out for
+        # bases 2-9, 10 runs to 10^EXP_TEN_MAX, and 1^1..1^EXP_ONE_MAX
+        for a in range(2, 10):
             n = 1
             while a ** n < EXP_LIMIT:
                 self.assertIn((a, n), pos, f'{a}^{n} missing')
                 n += 1
-        self.assertNotIn((23, 1), pos)
+        self.assertEqual({b for a, b in pos if a == 10},
+                         set(range(1, EXP_TEN_MAX + 1)))
+        self.assertNotIn((11, 1), pos)
+        self.assertNotIn((11, 2), pos)
         self.assertEqual({b for a, b in pos if a == 1},
                          set(range(1, EXP_ONE_MAX + 1)))
 
@@ -90,7 +96,7 @@ class GenerateFactsTests(SimpleTestCase):
             self.assertLessEqual(most, ANSWER_MAX[op], op)
         self.assertEqual(widest['mul'], ANSWER_MAX['mul'])   # 10x10 = 100
         self.assertEqual(widest['div'], ANSWER_MAX['div'])   # 100/10 = 10
-        self.assertEqual(widest['exp'], 484)                 # 22^2
+        self.assertEqual(widest['exp'], ANSWER_MAX['exp'])   # 10^5 = 100000
 
     def test_every_fact_has_known_strategy_and_stage(self):
         for op, a, b, _ans, strategy, stage, _order in self.facts:
@@ -186,13 +192,14 @@ class StrategySpotChecks(SimpleTestCase):
         ('div', 48, 6, 'div_think_mul'),
         # exponents: the sign never changes the family
         ('exp', 1, 5, 'exp_one'), ('exp', 1, -5, 'exp_one'),
-        ('exp', 17, 1, 'exp_one'), ('exp', 17, -1, 'exp_one'),
+        ('exp', 9, 1, 'exp_one'), ('exp', 9, -1, 'exp_one'),
         ('exp', 7, 2, 'exp_square'), ('exp', 10, -2, 'exp_square'),
         ('exp', 2, 2, 'exp_square'),
         ('exp', 2, 8, 'exp_two'), ('exp', 2, -3, 'exp_two'),
         ('exp', 3, 5, 'exp_cube'), ('exp', 7, -3, 'exp_cube'),
         ('exp', 4, 4, 'exp_cube'),
-        ('exp', 11, 2, 'exp_big_square'), ('exp', 22, -2, 'exp_big_square'),
+        ('exp', 10, 2, 'exp_square'), ('exp', 10, 1, 'exp_one'),
+        ('exp', 10, 3, 'exp_ten'), ('exp', 10, -5, 'exp_ten'),
     ]
 
     def test_strategy_spot_checks(self):
@@ -245,7 +252,7 @@ class StageSpotChecks(SimpleTestCase):
         ('exp', 6, 2, 23), ('exp', 6, -2, 24),
         ('exp', 2, 5, 25), ('exp', 2, -5, 26),
         ('exp', 5, 3, 27), ('exp', 3, -4, 28),
-        ('exp', 19, 2, 29), ('exp', 19, -2, 30),
+        ('exp', 10, 4, 29), ('exp', 10, -4, 30),
     ]
 
     def test_stage_spot_checks(self):
