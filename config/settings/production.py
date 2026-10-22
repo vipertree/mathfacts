@@ -18,7 +18,10 @@ from decouple import config
 DEBUG = False
 
 # WhiteNoise serves hashed/compressed static files in production.
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+}
 
 # Path-prefix mount: /mathfacts/ on adderoaks.com
 FORCE_SCRIPT_NAME = '/mathfacts'

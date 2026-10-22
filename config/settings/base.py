@@ -84,7 +84,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-# Production overrides STATICFILES_STORAGE with CompressedManifestStaticFilesStorage.
+# Production overrides STORAGES['staticfiles'] with CompressedManifestStaticFilesStorage.
 # Dev keeps the default so tests don't require running collectstatic.
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
